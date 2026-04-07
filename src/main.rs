@@ -10,6 +10,7 @@
 // Later milestones add `restore`, `oops`, attribution, sessions, TUI, hooks.
 
 mod daemon;
+mod hook;
 mod paths;
 mod restore;
 mod store;
@@ -159,7 +160,7 @@ async fn main() -> Result<()> {
         Command::Status => cmd_status(),
         Command::Serve => cmd_serve(),
         Command::Log { limit, .. } => cmd_log(limit),
-        Command::Sessions => not_impl("sessions"),
+        Command::Sessions => cmd_sessions(),
         Command::Diff { event_id, session } => cmd_diff(event_id, session),
         Command::Show {
             event_id,
@@ -175,9 +176,14 @@ async fn main() -> Result<()> {
         Command::Pin { .. } => not_impl("pin"),
         Command::Blame { .. } => not_impl("blame (v2)"),
         Command::Tui => not_impl("tui"),
-        Command::Exec { .. } => not_impl("exec"),
+        Command::Exec {
+            agent,
+            label,
+            command,
+        } => cmd_exec(agent, label, command),
         Command::Session(_) => not_impl("session"),
-        Command::Hook(_) => not_impl("hook"),
+        Command::Hook(HookCmd::Pre) => hook::handle_pre(),
+        Command::Hook(HookCmd::Post) => hook::handle_post(),
         Command::Gc => not_impl("gc"),
     }
 }
@@ -237,6 +243,105 @@ fn cmd_serve() -> Result<()> {
     daemon::serve(store)
 }
 
+fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Result<()> {
+    use std::process::Command as Proc;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    if command.is_empty() {
+        anyhow::bail!("usage: agent-undo exec --agent <name> -- <command...>");
+    }
+
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths.clone())?;
+    let ts_ns = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as i64)
+        .unwrap_or(0);
+    let session_id = format!("exec-{}", uuid::Uuid::new_v4().simple());
+
+    // Start the session record.
+    store.upsert_session(&store::SessionRow {
+        id: session_id.clone(),
+        agent: agent.clone(),
+        started_at_ns: ts_ns,
+        ended_at_ns: None,
+        prompt: label.clone(),
+        model: None,
+        metadata: Some(serde_json::json!({ "command": command }).to_string()),
+    })?;
+
+    // Write active-session marker so the watcher attributes child writes.
+    hook::write_active_session(
+        &paths,
+        Some(&hook::ActiveSession {
+            session_id: session_id.clone(),
+            agent: agent.clone(),
+            started_at_ns: ts_ns,
+            tool_name: None,
+            intended_file: None,
+        }),
+    )?;
+
+    println!(
+        "agent-undo exec: running as session {} (agent={})",
+        &session_id[..16],
+        agent
+    );
+
+    // Run the command, blocking until it exits. The watcher (assumed running
+    // separately) will attribute any file writes during this window.
+    let (cmd, args) = command.split_first().unwrap();
+    let status = Proc::new(cmd).args(args).status();
+
+    // Always clean up, even on error.
+    let _ = hook::write_active_session(&paths, None);
+    let end_ns = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as i64)
+        .unwrap_or(0);
+    let _ = store.mark_session_ended(&session_id, end_ns);
+
+    match status {
+        Ok(s) if s.success() => {
+            println!("agent-undo exec: session closed ({})", &session_id[..16]);
+            Ok(())
+        }
+        Ok(s) => {
+            let code = s.code().unwrap_or(-1);
+            std::process::exit(code);
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+fn cmd_sessions() -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    let sessions = store.list_sessions(50)?;
+    if sessions.is_empty() {
+        println!("no sessions recorded yet.");
+        return Ok(());
+    }
+    for s in sessions {
+        let start = Local
+            .timestamp_nanos(s.started_at_ns)
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let end = s
+            .ended_at_ns
+            .map(|t| Local.timestamp_nanos(t).format("%H:%M:%S").to_string())
+            .unwrap_or_else(|| "(open)".into());
+        println!(
+            "{id}  {agent:<12}  {start} → {end}",
+            id = &s.id[..s.id.len().min(12)],
+            agent = s.agent,
+            start = start,
+            end = end,
+        );
+    }
+    Ok(())
+}
+
 fn cmd_show(event_id: u64, before: bool, after: bool) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
@@ -259,11 +364,7 @@ fn cmd_diff(event_id: Option<u64>, session: Option<String>) -> Result<()> {
     }
 }
 
-fn cmd_restore(
-    event_id: Option<u64>,
-    file: Option<String>,
-    session: Option<String>,
-) -> Result<()> {
+fn cmd_restore(event_id: Option<u64>, file: Option<String>, session: Option<String>) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
 
@@ -338,10 +439,7 @@ fn cmd_oops(confirm: bool) -> Result<()> {
         true
     } else {
         Confirm::new()
-            .with_prompt(format!(
-                "Roll back these {} file(s)?",
-                plan.len()
-            ))
+            .with_prompt(format!("Roll back these {} file(s)?", plan.len()))
             .default(true)
             .interact()
             .unwrap_or(false)

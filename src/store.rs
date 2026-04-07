@@ -91,6 +91,7 @@ impl Store {
 
     // --- blob store -------------------------------------------------------
 
+    #[allow(dead_code)] // used by GC + restore verification in v0.3
     pub fn has_blob(&self, hash: &str) -> bool {
         self.paths.object_path(hash).exists()
     }
@@ -144,13 +145,7 @@ impl Store {
         }
     }
 
-    pub fn upsert_file_state(
-        &self,
-        path: &str,
-        hash: &str,
-        size: i64,
-        ts_ns: i64,
-    ) -> Result<()> {
+    pub fn upsert_file_state(&self, path: &str, hash: &str, size: i64, ts_ns: i64) -> Result<()> {
         self.conn.execute(
             "INSERT INTO file_state (path, latest_hash, latest_size, latest_ts_ns)
              VALUES (?1, ?2, ?3, ?4)
@@ -270,6 +265,60 @@ impl Store {
             .map_err(Into::into)
     }
 
+    // --- sessions ---------------------------------------------------------
+
+    /// Insert or update a session. Idempotent on session id.
+    pub fn upsert_session(&self, s: &SessionRow) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO sessions (id, agent, started_at_ns, ended_at_ns, prompt, model, metadata)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(id) DO UPDATE SET
+                agent         = excluded.agent,
+                ended_at_ns   = COALESCE(excluded.ended_at_ns, sessions.ended_at_ns),
+                prompt        = COALESCE(excluded.prompt, sessions.prompt),
+                model         = COALESCE(excluded.model, sessions.model),
+                metadata      = COALESCE(excluded.metadata, sessions.metadata)",
+            params![
+                s.id,
+                s.agent,
+                s.started_at_ns,
+                s.ended_at_ns,
+                s.prompt,
+                s.model,
+                s.metadata,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn mark_session_ended(&self, session_id: &str, ts_ns: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE sessions SET ended_at_ns = ?1 WHERE id = ?2 AND ended_at_ns IS NULL",
+            params![ts_ns, session_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_sessions(&self, limit: usize) -> Result<Vec<SessionRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, agent, started_at_ns, ended_at_ns, prompt, model, metadata
+             FROM sessions ORDER BY started_at_ns DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok(SessionRow {
+                id: row.get(0)?,
+                agent: row.get(1)?,
+                started_at_ns: row.get(2)?,
+                ended_at_ns: row.get(3)?,
+                prompt: row.get(4)?,
+                model: row.get(5)?,
+                metadata: row.get(6)?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
     pub fn event_count(&self) -> Result<i64> {
         Ok(self
             .conn
@@ -296,14 +345,28 @@ pub struct NewEvent {
 }
 
 #[derive(Debug, Clone)]
+pub struct SessionRow {
+    pub id: String,
+    pub agent: String,
+    pub started_at_ns: i64,
+    pub ended_at_ns: Option<i64>,
+    pub prompt: Option<String>,
+    pub model: Option<String>,
+    pub metadata: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct EventRow {
     pub id: i64,
     pub ts_ns: i64,
     pub path: String,
     pub before_hash: Option<String>,
     pub after_hash: Option<String>,
+    #[allow(dead_code)] // surfaced by TUI / blame in v0.3
     pub size_before: Option<i64>,
+    #[allow(dead_code)] // surfaced by TUI / blame in v0.3
     pub size_after: Option<i64>,
     pub attribution: String,
+    #[allow(dead_code)] // surfaced by `diff --session` in v0.3
     pub session_id: Option<String>,
 }

@@ -1,10 +1,11 @@
 use anyhow::Result;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::{EventKind, RecursiveMode, Watcher};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::mpsc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::hook::{read_active_session, ActiveSession};
 use crate::store::{NewEvent, Store};
 
 /// Files larger than this are skipped entirely. Mostly to avoid snapshotting
@@ -167,6 +168,8 @@ fn process_path(store: &Store, path: &Path) -> Result<()> {
         }
     }
 
+    let attribution = resolve_attribution(store);
+
     store.write_blob(&bytes)?;
     store.record_event(&NewEvent {
         ts_ns,
@@ -175,16 +178,50 @@ fn process_path(store: &Store, path: &Path) -> Result<()> {
         after_hash: Some(hash.clone()),
         size_before: prior.as_ref().map(|(_, s)| *s),
         size_after: Some(size),
-        attribution: "unknown".into(),
-        confidence: "none".into(),
-        session_id: None,
+        attribution: attribution.agent,
+        confidence: attribution.confidence,
+        session_id: attribution.session_id,
         pid: None,
         process_name: None,
-        tool_name: None,
+        tool_name: attribution.tool_name,
     })?;
     store.upsert_file_state(&rel, &hash, size, ts_ns)?;
     tracing::info!("snapshot: {} ({})", rel, &hash[..12]);
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct Attribution {
+    agent: String,
+    confidence: String,
+    session_id: Option<String>,
+    tool_name: Option<String>,
+}
+
+/// Resolve the "who wrote this file" answer by checking (in order):
+///   Layer 2: `.agent-undo/active-session.json` (Claude Code hook)
+///   Layer 0: "unknown"
+///
+/// Layer 1 (process scanning heuristic) and Layer 3 (eBPF) are v0.3.
+fn resolve_attribution(store: &Store) -> Attribution {
+    if let Ok(Some(active)) = read_active_session(&store.paths) {
+        return from_active(&active);
+    }
+    Attribution {
+        agent: "unknown".into(),
+        confidence: "none".into(),
+        session_id: None,
+        tool_name: None,
+    }
+}
+
+fn from_active(active: &ActiveSession) -> Attribution {
+    Attribution {
+        agent: active.agent.clone(),
+        confidence: "high".into(),
+        session_id: Some(active.session_id.clone()),
+        tool_name: active.tool_name.clone(),
+    }
 }
 
 fn should_skip(ignorer: &Gitignore, path: &Path) -> bool {
@@ -217,9 +254,7 @@ fn build_ignorer(root: &Path) -> Gitignore {
     ] {
         let _ = builder.add_line(None, pat);
     }
-    builder
-        .build()
-        .unwrap_or_else(|_| Gitignore::empty())
+    builder.build().unwrap_or_else(|_| Gitignore::empty())
 }
 
 fn relative_path(root: &Path, path: &Path) -> String {
@@ -236,11 +271,3 @@ fn now_ns() -> i64 {
         .unwrap_or(0)
 }
 
-/// Describe an absolute path for display, falling back to a lossy conversion
-/// when the root prefix cannot be stripped.
-pub fn display_path(root: &Path, abs: &PathBuf) -> String {
-    abs.strip_prefix(root)
-        .unwrap_or(abs)
-        .display()
-        .to_string()
-}

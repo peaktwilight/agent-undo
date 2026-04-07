@@ -31,18 +31,13 @@ fn now_ns() -> i64 {
 /// `target_hash = None` means "the file did not exist" — delete it.
 ///
 /// Always records a pre-restore snapshot of the current file state first.
-pub fn restore_file_to(
-    store: &Store,
-    rel_path: &str,
-    target_hash: Option<&str>,
-) -> Result<()> {
+pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>) -> Result<()> {
     let abs = store.paths.root.join(rel_path);
     let ts_ns = now_ns();
 
     // Capture current state so the restore is itself reversible.
     let current: Option<(String, i64, Vec<u8>)> = if abs.exists() && abs.is_file() {
-        let bytes = fs::read(&abs)
-            .with_context(|| format!("reading current {}", abs.display()))?;
+        let bytes = fs::read(&abs).with_context(|| format!("reading current {}", abs.display()))?;
         let hash = blake3::hash(&bytes).to_hex().to_string();
         let size = bytes.len() as i64;
         store.write_blob(&bytes)?;
@@ -78,10 +73,7 @@ pub fn restore_file_to(
                 fs::create_dir_all(parent)?;
             }
             // Atomic write via temp + rename to match the store's invariant.
-            let tmp = abs.with_extension(format!(
-                "agent-undo-restore.{}",
-                &h[..8.min(h.len())]
-            ));
+            let tmp = abs.with_extension(format!("agent-undo-restore.{}", &h[..8.min(h.len())]));
             fs::write(&tmp, &bytes)?;
             fs::rename(&tmp, &abs)?;
 
@@ -106,8 +98,7 @@ pub fn restore_file_to(
         None => {
             // Target says "file didn't exist" — delete it if present.
             if abs.exists() {
-                fs::remove_file(&abs)
-                    .with_context(|| format!("removing {}", abs.display()))?;
+                fs::remove_file(&abs).with_context(|| format!("removing {}", abs.display()))?;
             }
             let after_ts = now_ns();
             store.record_event(&NewEvent {
@@ -198,12 +189,7 @@ fn is_restore_bookkeeping(attribution: &str) -> bool {
 }
 
 /// Print a file's content from the store by event id + side.
-pub fn show_event(
-    store: &Store,
-    event_id: i64,
-    show_before: bool,
-    show_after: bool,
-) -> Result<()> {
+pub fn show_event(store: &Store, event_id: i64, show_before: bool, show_after: bool) -> Result<()> {
     let ev = store
         .get_event(event_id)?
         .ok_or_else(|| anyhow::anyhow!("no event #{event_id}"))?;
@@ -230,7 +216,11 @@ pub fn show_event(
         None => {
             bail!(
                 "event #{event_id} has no {label} content ({} at this event)",
-                if want_before { "file did not exist" } else { "file was deleted" }
+                if want_before {
+                    "file did not exist"
+                } else {
+                    "file was deleted"
+                }
             );
         }
     }
