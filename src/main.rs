@@ -1,18 +1,24 @@
 // agent-undo — Ctrl-Z for AI coding agents.
 //
-// This is the CLI entry point. The actual work lives in modules:
+// CLI entry point. Modules:
 //
-//   daemon/     — long-running background process (FS watcher, hasher, store, attribution)
-//   store/      — content-addressable object store + SQLite timeline
-//   cli/        — subcommand implementations
-//   hook/       — Claude Code hook handler (stdin JSON protocol)
-//   session/    — session lifecycle + attribution
-//   ipc/        — unix socket protocol between CLI and daemon
+//   paths  — project path discovery (.agent-undo/ layout)
+//   store  — content-addressable blob store + SQLite timeline
+//   daemon — FS watcher pipeline and initial scan
 //
-// The "oops" command is the reason this project exists. Everything else is
-// infrastructure that makes "oops" reliable.
+// Milestone A (this file): `init`, `serve`, `log` end-to-end.
+// Later milestones add `restore`, `oops`, attribution, sessions, TUI, hooks.
 
+mod daemon;
+mod paths;
+mod store;
+
+use anyhow::Result;
+use chrono::{Local, TimeZone};
 use clap::{Parser, Subcommand};
+
+use crate::paths::ProjectPaths;
+use crate::store::Store;
 
 #[derive(Parser)]
 #[command(
@@ -30,30 +36,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Initialize agent-undo in the current project and start the daemon.
+    /// Initialize agent-undo in the current project.
     Init,
 
     /// Show daemon status and recent activity.
     Status,
 
-    /// Start the daemon (usually auto-started by `init`).
+    /// Start the watcher (foreground). Usually run once via `init` in v0.
     Serve,
 
     /// Show the timeline of file events.
     Log {
-        /// Filter by agent (claude-code, cursor, cline, aider, codex, human).
         #[arg(long)]
         agent: Option<String>,
-
-        /// Filter by file path.
         #[arg(long)]
         file: Option<String>,
-
-        /// Show events since a time (e.g. "5m", "2h", "1d").
         #[arg(long)]
         since: Option<String>,
-
-        /// Maximum events to show.
         #[arg(short = 'n', long, default_value_t = 50)]
         limit: usize,
     },
@@ -63,10 +62,7 @@ enum Command {
 
     /// Show the diff for a single event or an entire session.
     Diff {
-        /// Event ID.
         event_id: Option<u64>,
-
-        /// Show the full diff of an entire session.
         #[arg(long)]
         session: Option<String>,
     },
@@ -82,49 +78,34 @@ enum Command {
 
     /// Restore a file to a previous state.
     Restore {
-        /// Event ID to restore to.
         event_id: Option<u64>,
-
-        /// Restore a specific file by path.
         #[arg(long)]
         file: Option<String>,
-
-        /// Roll back an entire agent session atomically.
         #[arg(long)]
         session: Option<String>,
     },
 
     /// Panic button — undo the last agent action.
     Oops {
-        /// Skip the confirmation prompt.
         #[arg(long)]
         confirm: bool,
     },
 
     /// Pin the current state so it's never garbage collected.
-    Pin {
-        label: String,
-    },
+    Pin { label: String },
 
     /// Show per-line agent attribution for a file (v2).
-    Blame {
-        file: String,
-    },
+    Blame { file: String },
 
     /// Interactive timeline browser.
     Tui,
 
     /// Run a command and attribute all its file writes to a specific agent.
     Exec {
-        /// Agent identifier for attribution.
         #[arg(long)]
         agent: String,
-
-        /// Optional session label.
         #[arg(long)]
         label: Option<String>,
-
-        /// Command and arguments.
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
     },
@@ -143,54 +124,146 @@ enum Command {
 
 #[derive(Subcommand)]
 enum SessionCmd {
-    /// Start a new session. Prints the session ID.
     Start {
         #[arg(long)]
         agent: String,
         #[arg(long)]
         metadata: Option<String>,
     },
-    /// End a session.
-    End { session_id: String },
+    End {
+        session_id: String,
+    },
 }
 
 #[derive(Subcommand)]
 enum HookCmd {
-    /// PreToolUse hook — reads JSON on stdin.
     Pre,
-    /// PostToolUse hook — reads JSON on stdin.
     Post,
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "agent_undo=info".into()),
         )
+        .with_target(false)
         .init();
 
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Init => println!("agent-undo init: not yet implemented"),
-        Command::Status => println!("agent-undo status: not yet implemented"),
-        Command::Serve => println!("agent-undo serve: not yet implemented"),
-        Command::Log { .. } => println!("agent-undo log: not yet implemented"),
-        Command::Sessions => println!("agent-undo sessions: not yet implemented"),
-        Command::Diff { .. } => println!("agent-undo diff: not yet implemented"),
-        Command::Show { .. } => println!("agent-undo show: not yet implemented"),
-        Command::Restore { .. } => println!("agent-undo restore: not yet implemented"),
-        Command::Oops { .. } => println!("agent-undo oops: not yet implemented"),
-        Command::Pin { .. } => println!("agent-undo pin: not yet implemented"),
-        Command::Blame { .. } => println!("agent-undo blame: v2 feature"),
-        Command::Tui => println!("agent-undo tui: not yet implemented"),
-        Command::Exec { .. } => println!("agent-undo exec: not yet implemented"),
-        Command::Session(_) => println!("agent-undo session: not yet implemented"),
-        Command::Hook(_) => println!("agent-undo hook: not yet implemented"),
-        Command::Gc => println!("agent-undo gc: not yet implemented"),
+        Command::Init => cmd_init(),
+        Command::Status => cmd_status(),
+        Command::Serve => cmd_serve(),
+        Command::Log { limit, .. } => cmd_log(limit),
+        Command::Sessions => not_impl("sessions"),
+        Command::Diff { .. } => not_impl("diff"),
+        Command::Show { .. } => not_impl("show"),
+        Command::Restore { .. } => not_impl("restore"),
+        Command::Oops { .. } => not_impl("oops"),
+        Command::Pin { .. } => not_impl("pin"),
+        Command::Blame { .. } => not_impl("blame (v2)"),
+        Command::Tui => not_impl("tui"),
+        Command::Exec { .. } => not_impl("exec"),
+        Command::Session(_) => not_impl("session"),
+        Command::Hook(_) => not_impl("hook"),
+        Command::Gc => not_impl("gc"),
+    }
+}
+
+fn not_impl(name: &str) -> Result<()> {
+    println!("agent-undo {name}: not yet implemented");
+    Ok(())
+}
+
+// --- commands --------------------------------------------------------------
+
+fn cmd_init() -> Result<()> {
+    let paths = ProjectPaths::cwd_as_root()?;
+    if paths.data_dir.exists() {
+        println!(
+            "agent-undo is already initialized at {}",
+            paths.data_dir.display()
+        );
+        return Ok(());
     }
 
+    println!("Initializing agent-undo at {}", paths.root.display());
+    let store = Store::init(paths)?;
+
+    println!("Scanning project files...");
+    let count = daemon::initial_scan(&store)?;
+    println!("  snapshotted {count} files");
+
+    println!();
+    println!("Next:");
+    println!("  agent-undo serve    # start the watcher");
+    println!("  agent-undo log      # see events as they happen");
+    println!("  agent-undo oops     # panic button (coming soon)");
+    Ok(())
+}
+
+fn cmd_status() -> Result<()> {
+    let paths = match ProjectPaths::discover() {
+        Ok(p) => p,
+        Err(e) => {
+            println!("{e}");
+            return Ok(());
+        }
+    };
+    let store = Store::open(paths.clone())?;
+    let events = store.event_count()?;
+    println!("root:     {}", paths.root.display());
+    println!("data:     {}", paths.data_dir.display());
+    println!("events:   {events}");
+    println!("database: {}", paths.db_path.display());
+    Ok(())
+}
+
+fn cmd_serve() -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    daemon::serve(store)
+}
+
+fn cmd_log(limit: usize) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    let events = store.recent_events(limit)?;
+
+    if events.is_empty() {
+        println!("no events yet. run `agent-undo serve` and edit a file.");
+        return Ok(());
+    }
+
+    for e in events.iter().rev() {
+        let when = Local
+            .timestamp_nanos(e.ts_ns)
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let kind = match (&e.before_hash, &e.after_hash) {
+            (None, Some(_)) => "create",
+            (Some(_), Some(_)) => "modify",
+            (Some(_), None) => "delete",
+            (None, None) => "?",
+        };
+        let short_hash = e
+            .after_hash
+            .as_deref()
+            .or(e.before_hash.as_deref())
+            .map(|h| &h[..h.len().min(12)])
+            .unwrap_or("-");
+        println!(
+            "#{id:<5} {when}  {kind:<6} {path}  [{agent}]  {hash}",
+            id = e.id,
+            when = when,
+            kind = kind,
+            path = e.path,
+            agent = e.attribution,
+            hash = short_hash,
+        );
+    }
     Ok(())
 }

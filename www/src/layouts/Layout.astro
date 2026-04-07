@@ -1,0 +1,60 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "agent-undo — Ctrl-Z for AI coding agents",
+  description = "A 5MB binary that snapshots every file your AI touches and lets you roll back any edit, any session, any time. Editor-agnostic. Local-first. Zero config.",
+} = Astro.props;
+
+const canonical = "https://agent-undo.dev/";
+const ogImage = "https://agent-undo.dev/og-image.png";
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta
+      name="keywords"
+      content="agent-undo, AI coding agents, undo, rollback, Claude Code, Cursor, Cline, Aider, file snapshot, content-addressable, dev tools, Rust"
+    />
+    <meta name="author" content="agent-undo contributors" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href={canonical} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="agent-undo" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Outfit (display) + JetBrains Mono — Inter Variable is bundled via CSS import -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="min-h-screen bg-[#0a0a0a] text-white antialiased">
+    <slot />
+  </body>
+</html>
