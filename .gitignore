@@ -1,0 +1,7 @@
+/target
+/Cargo.lock.bak
+.DS_Store
+.agent-undo/
+*.swp
+.env
+.env.local
