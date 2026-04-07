@@ -11,6 +11,7 @@
 
 mod daemon;
 mod hook;
+mod install;
 mod paths;
 mod restore;
 mod store;
@@ -39,7 +40,16 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Initialize agent-undo in the current project.
-    Init,
+    Init {
+        /// Also patch ~/.claude/settings.json with agent-undo hooks so
+        /// Claude Code edits are attributed automatically.
+        #[arg(long)]
+        install_hooks: bool,
+
+        /// Skip initial project scan (fast init).
+        #[arg(long)]
+        no_scan: bool,
+    },
 
     /// Show daemon status and recent activity.
     Status,
@@ -156,7 +166,10 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Init => cmd_init(),
+        Command::Init {
+            install_hooks,
+            no_scan,
+        } => cmd_init(install_hooks, no_scan),
         Command::Status => cmd_status(),
         Command::Serve => cmd_serve(),
         Command::Log { limit, .. } => cmd_log(limit),
@@ -195,28 +208,61 @@ fn not_impl(name: &str) -> Result<()> {
 
 // --- commands --------------------------------------------------------------
 
-fn cmd_init() -> Result<()> {
+fn cmd_init(install_hooks: bool, no_scan: bool) -> Result<()> {
     let paths = ProjectPaths::cwd_as_root()?;
-    if paths.data_dir.exists() {
+    let fresh = !paths.data_dir.exists();
+
+    if fresh {
+        println!("Initializing agent-undo at {}", paths.root.display());
+        let store = Store::init(paths.clone())?;
+
+        if !no_scan {
+            println!("Scanning project files...");
+            let count = daemon::initial_scan(&store)?;
+            println!("  snapshotted {count} files");
+        } else {
+            println!("  (skipping initial scan — --no-scan)");
+        }
+    } else {
         println!(
             "agent-undo is already initialized at {}",
             paths.data_dir.display()
         );
-        return Ok(());
     }
 
-    println!("Initializing agent-undo at {}", paths.root.display());
-    let store = Store::init(paths)?;
+    if install_hooks {
+        match install::install_claude_hooks() {
+            Ok((true, path)) => {
+                println!();
+                println!("✓ installed Claude Code hooks into {}", path.display());
+                println!("  Claude Code edits will now be attributed automatically.");
+                println!("  Restart any open Claude Code sessions to pick them up.");
+            }
+            Ok((false, path)) => {
+                println!();
+                println!("✓ Claude Code hooks already present in {}", path.display());
+            }
+            Err(e) => {
+                eprintln!();
+                eprintln!("⚠ could not install Claude Code hooks: {e}");
+                eprintln!("  init still succeeded — attribution will fall back to 'unknown'.");
+            }
+        }
+    }
 
-    println!("Scanning project files...");
-    let count = daemon::initial_scan(&store)?;
-    println!("  snapshotted {count} files");
-
-    println!();
-    println!("Next:");
-    println!("  agent-undo serve    # start the watcher");
-    println!("  agent-undo log      # see events as they happen");
-    println!("  agent-undo oops     # panic button (coming soon)");
+    if fresh {
+        println!();
+        println!("Next:");
+        println!("  agent-undo serve    # start the watcher");
+        println!("  agent-undo log      # see events as they happen");
+        println!("  agent-undo oops     # panic button");
+        if !install_hooks {
+            println!();
+            println!(
+                "Tip: run `agent-undo init --install-hooks` to auto-attribute Claude Code edits."
+            );
+        }
+    }
     Ok(())
 }
 
@@ -353,8 +399,17 @@ fn cmd_diff(event_id: Option<u64>, session: Option<String>) -> Result<()> {
     let store = Store::open(paths)?;
     match (event_id, session) {
         (Some(id), _) => restore::diff_event(&store, id as i64),
-        (None, Some(_)) => {
-            println!("diff --session: not yet implemented (needs session tagging)");
+        (None, Some(session_id)) => {
+            let events = store.events_for_session(&session_id)?;
+            if events.is_empty() {
+                println!("no events found for session {session_id}");
+                return Ok(());
+            }
+            println!("# session {} — {} event(s)", session_id, events.len());
+            for ev in events {
+                println!();
+                restore::diff_event(&store, ev.id)?;
+            }
             Ok(())
         }
         (None, None) => {
@@ -393,8 +448,20 @@ fn cmd_restore(event_id: Option<u64>, file: Option<String>, session: Option<Stri
             );
             Ok(())
         }
-        (None, None, Some(_)) => {
-            println!("restore --session: not yet implemented (needs session tagging)");
+        (None, None, Some(session_id)) => {
+            let restored = restore::restore_session(&store, &session_id)?;
+            if restored.is_empty() {
+                println!("no events found for session {session_id}");
+            } else {
+                println!(
+                    "rolled back session {} — restored {} file(s):",
+                    session_id,
+                    restored.len()
+                );
+                for p in &restored {
+                    println!("  {p}");
+                }
+            }
             Ok(())
         }
         (None, None, None) => {

@@ -128,6 +128,34 @@ pub fn restore_to_event(store: &Store, event: &EventRow) -> Result<()> {
     restore_file_to(store, &event.path, event.before_hash.as_deref())
 }
 
+/// `restore --session S`: atomically roll back every file touched by a
+/// session to its state BEFORE that session's first edit on that file.
+///
+/// For each file the session touched, we pick the *earliest* event in the
+/// session (since sessions are ordered by ts_ns ascending) and restore to its
+/// `before_hash`. That's the pre-session state of the file, which is exactly
+/// what "undo this whole agent refactor" should mean.
+pub fn restore_session(store: &Store, session_id: &str) -> Result<Vec<String>> {
+    let events = store.events_for_session(session_id)?;
+    if events.is_empty() {
+        return Ok(vec![]);
+    }
+    // Walk the session in chronological order and keep the FIRST event per file.
+    let mut earliest_per_file: std::collections::HashMap<String, EventRow> =
+        std::collections::HashMap::new();
+    for ev in events {
+        earliest_per_file.entry(ev.path.clone()).or_insert(ev);
+    }
+    let mut restored = Vec::new();
+    let mut paths: Vec<(String, EventRow)> = earliest_per_file.into_iter().collect();
+    paths.sort_by(|a, b| a.0.cmp(&b.0));
+    for (path, ev) in paths {
+        restore_file_to(store, &path, ev.before_hash.as_deref())?;
+        restored.push(path);
+    }
+    Ok(restored)
+}
+
 /// `restore --file F`: walk back to the state before the most recent
 /// user-originated change on F.
 pub fn restore_latest_change_to_file(store: &Store, rel_path: &str) -> Result<EventRow> {

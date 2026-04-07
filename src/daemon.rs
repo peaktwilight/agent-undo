@@ -270,4 +270,3 @@ fn now_ns() -> i64 {
         .map(|d| d.as_nanos() as i64)
         .unwrap_or(0)
 }
-

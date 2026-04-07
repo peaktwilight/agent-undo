@@ -243,6 +243,31 @@ impl Store {
         }
     }
 
+    pub fn events_for_session(&self, session_id: &str) -> Result<Vec<EventRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
+             FROM events
+             WHERE session_id = ?1
+               AND attribution NOT IN ('agent-undo-restore', 'pre-restore')
+             ORDER BY ts_ns ASC",
+        )?;
+        let rows = stmt.query_map(params![session_id], |row| {
+            Ok(EventRow {
+                id: row.get(0)?,
+                ts_ns: row.get(1)?,
+                path: row.get(2)?,
+                before_hash: row.get(3)?,
+                after_hash: row.get(4)?,
+                size_before: row.get(5)?,
+                size_after: row.get(6)?,
+                attribution: row.get(7)?,
+                session_id: row.get(8)?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
     pub fn recent_events(&self, limit: usize) -> Result<Vec<EventRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
