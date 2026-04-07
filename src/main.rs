@@ -11,6 +11,7 @@
 
 mod daemon;
 mod paths;
+mod restore;
 mod store;
 
 use anyhow::Result;
@@ -159,10 +160,18 @@ async fn main() -> Result<()> {
         Command::Serve => cmd_serve(),
         Command::Log { limit, .. } => cmd_log(limit),
         Command::Sessions => not_impl("sessions"),
-        Command::Diff { .. } => not_impl("diff"),
-        Command::Show { .. } => not_impl("show"),
-        Command::Restore { .. } => not_impl("restore"),
-        Command::Oops { .. } => not_impl("oops"),
+        Command::Diff { event_id, session } => cmd_diff(event_id, session),
+        Command::Show {
+            event_id,
+            before,
+            after,
+        } => cmd_show(event_id, before, after),
+        Command::Restore {
+            event_id,
+            file,
+            session,
+        } => cmd_restore(event_id, file, session),
+        Command::Oops { confirm } => cmd_oops(confirm),
         Command::Pin { .. } => not_impl("pin"),
         Command::Blame { .. } => not_impl("blame (v2)"),
         Command::Tui => not_impl("tui"),
@@ -226,6 +235,132 @@ fn cmd_serve() -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
     daemon::serve(store)
+}
+
+fn cmd_show(event_id: u64, before: bool, after: bool) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    restore::show_event(&store, event_id as i64, before, after)
+}
+
+fn cmd_diff(event_id: Option<u64>, session: Option<String>) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    match (event_id, session) {
+        (Some(id), _) => restore::diff_event(&store, id as i64),
+        (None, Some(_)) => {
+            println!("diff --session: not yet implemented (needs session tagging)");
+            Ok(())
+        }
+        (None, None) => {
+            println!("usage: agent-undo diff <event-id>  OR  agent-undo diff --session <id>");
+            Ok(())
+        }
+    }
+}
+
+fn cmd_restore(
+    event_id: Option<u64>,
+    file: Option<String>,
+    session: Option<String>,
+) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+
+    match (event_id, file, session) {
+        (Some(id), _, _) => {
+            let ev = store
+                .get_event(id as i64)?
+                .ok_or_else(|| anyhow::anyhow!("no event #{id}"))?;
+            restore::restore_to_event(&store, &ev)?;
+            println!(
+                "restored {} to state before event #{} ({})",
+                ev.path,
+                ev.id,
+                ev.before_hash
+                    .as_deref()
+                    .map(|h| &h[..12])
+                    .unwrap_or("<did not exist>")
+            );
+            Ok(())
+        }
+        (None, Some(path), _) => {
+            let ev = restore::restore_latest_change_to_file(&store, &path)?;
+            println!(
+                "restored {} — undid event #{} (attribution: {})",
+                path, ev.id, ev.attribution
+            );
+            Ok(())
+        }
+        (None, None, Some(_)) => {
+            println!("restore --session: not yet implemented (needs session tagging)");
+            Ok(())
+        }
+        (None, None, None) => {
+            println!(
+                "usage: agent-undo restore <event-id>\n   or: agent-undo restore --file <path>\n   or: agent-undo restore --session <id>"
+            );
+            Ok(())
+        }
+    }
+}
+
+fn cmd_oops(confirm: bool) -> Result<()> {
+    use dialoguer::Confirm;
+    const WINDOW_NS: i64 = 30 * 1_000_000_000; // 30 seconds
+
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+
+    let plan = restore::oops_plan(&store, WINDOW_NS)?;
+    if plan.is_empty() {
+        println!("nothing to undo — no recent user events.");
+        return Ok(());
+    }
+
+    println!("agent-undo would undo the following:");
+    println!();
+    for (path, ev) in &plan {
+        let kind = match (&ev.before_hash, &ev.after_hash) {
+            (None, Some(_)) => "created",
+            (Some(_), Some(_)) => "modified",
+            (Some(_), None) => "deleted",
+            (None, None) => "?",
+        };
+        println!(
+            "  {:10}  {}  (event #{}, agent: {})",
+            kind, path, ev.id, ev.attribution
+        );
+    }
+    println!();
+
+    let proceed = if confirm {
+        true
+    } else {
+        Confirm::new()
+            .with_prompt(format!(
+                "Roll back these {} file(s)?",
+                plan.len()
+            ))
+            .default(true)
+            .interact()
+            .unwrap_or(false)
+    };
+
+    if !proceed {
+        println!("aborted.");
+        return Ok(());
+    }
+
+    let done = restore::oops(&store, WINDOW_NS)?;
+    println!();
+    println!("restored {} file(s):", done.len());
+    for (path, _) in &done {
+        println!("  {path}");
+    }
+    println!();
+    println!("tip: run `agent-undo log` to see the restore events — undo-the-undo is always one command away.");
+    Ok(())
 }
 
 fn cmd_log(limit: usize) -> Result<()> {

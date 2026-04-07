@@ -193,6 +193,61 @@ impl Store {
         Ok(self.conn.last_insert_rowid())
     }
 
+    pub fn get_event(&self, id: i64) -> Result<Option<EventRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
+             FROM events WHERE id = ?1",
+        )?;
+        let result = stmt.query_row(params![id], |row| {
+            Ok(EventRow {
+                id: row.get(0)?,
+                ts_ns: row.get(1)?,
+                path: row.get(2)?,
+                before_hash: row.get(3)?,
+                after_hash: row.get(4)?,
+                size_before: row.get(5)?,
+                size_after: row.get(6)?,
+                attribution: row.get(7)?,
+                session_id: row.get(8)?,
+            })
+        });
+        match result {
+            Ok(ev) => Ok(Some(ev)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Most recent event for a specific file path, excluding restore-driven
+    /// events (so `restore --file X` walks past its own prior restores).
+    pub fn latest_user_event_for_file(&self, path: &str) -> Result<Option<EventRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
+             FROM events
+             WHERE path = ?1
+               AND attribution NOT IN ('agent-undo-restore', 'pre-restore', 'initial-scan')
+             ORDER BY id DESC LIMIT 1",
+        )?;
+        let result = stmt.query_row(params![path], |row| {
+            Ok(EventRow {
+                id: row.get(0)?,
+                ts_ns: row.get(1)?,
+                path: row.get(2)?,
+                before_hash: row.get(3)?,
+                after_hash: row.get(4)?,
+                size_before: row.get(5)?,
+                size_after: row.get(6)?,
+                attribution: row.get(7)?,
+                session_id: row.get(8)?,
+            })
+        });
+        match result {
+            Ok(ev) => Ok(Some(ev)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn recent_events(&self, limit: usize) -> Result<Vec<EventRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
