@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use crate::hook::ActiveSession;
 use crate::paths::ProjectPaths;
 use crate::session;
-use crate::store::Store;
+use crate::store::{EventRow, SessionRow, Store};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -17,6 +17,15 @@ pub enum Request {
     },
     SessionEnd {
         session_id: String,
+    },
+    Sessions {
+        limit: usize,
+    },
+    FilteredEvents {
+        agent: Option<String>,
+        path_substring: Option<String>,
+        since_ns: Option<i64>,
+        limit: usize,
     },
 }
 
@@ -31,6 +40,12 @@ pub enum Response {
         session_id: String,
     },
     SessionEnded,
+    Sessions {
+        sessions: Vec<SessionRow>,
+    },
+    Events {
+        events: Vec<EventRow>,
+    },
     Error {
         message: String,
     },
@@ -151,6 +166,22 @@ fn handle_request(paths: &ProjectPaths, request: Request) -> Result<Response> {
             session::end(&store, &session_id, true)?;
             Ok(Response::SessionEnded)
         }
+        Request::Sessions { limit } => Ok(Response::Sessions {
+            sessions: store.list_sessions(limit)?,
+        }),
+        Request::FilteredEvents {
+            agent,
+            path_substring,
+            since_ns,
+            limit,
+        } => Ok(Response::Events {
+            events: store.filtered_events(
+                agent.as_deref(),
+                path_substring.as_deref(),
+                since_ns,
+                limit,
+            )?,
+        }),
     }
 }
 
@@ -253,6 +284,11 @@ mod tests {
             other => panic!("unexpected status response: {other:?}"),
         }
 
+        match send(&paths, &Request::Sessions { limit: 5 }).expect("sessions request") {
+            Response::Sessions { sessions } => assert!(sessions.is_empty()),
+            other => panic!("unexpected sessions response: {other:?}"),
+        }
+
         let session_id = match send(
             &paths,
             &Request::SessionStart {
@@ -281,6 +317,21 @@ mod tests {
         {
             Response::SessionEnded => {}
             other => panic!("unexpected session end response: {other:?}"),
+        }
+
+        match send(
+            &paths,
+            &Request::FilteredEvents {
+                agent: Some("initial-scan".into()),
+                path_substring: Some("f.rs".into()),
+                since_ns: None,
+                limit: 10,
+            },
+        )
+        .expect("filtered events")
+        {
+            Response::Events { events } => assert_eq!(events.len(), 1),
+            other => panic!("unexpected events response: {other:?}"),
         }
 
         assert!(

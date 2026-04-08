@@ -894,8 +894,15 @@ fn cmd_session_end(session_id: String) -> Result<()> {
 
 fn cmd_sessions() -> Result<()> {
     let paths = ProjectPaths::discover()?;
-    let store = Store::open(paths)?;
-    let sessions = store.list_sessions(50)?;
+    let sessions = match ipc::send(&paths, &ipc::Request::Sessions { limit: 50 }) {
+        Ok(ipc::Response::Sessions { sessions }) => sessions,
+        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(_) => anyhow::bail!("unexpected daemon response"),
+        Err(_) => {
+            let store = Store::open(paths)?;
+            store.list_sessions(50)?
+        }
+    };
     if sessions.is_empty() {
         println!("no sessions recorded yet.");
         return Ok(());
@@ -1069,7 +1076,7 @@ fn cmd_log(
 ) -> Result<()> {
     use std::time::{SystemTime, UNIX_EPOCH};
     let paths = ProjectPaths::discover()?;
-    let store = Store::open(paths)?;
+    let store = Store::open(paths.clone())?;
 
     let since_ns = match since.as_deref() {
         Some(s) => Some(parse_since(s)?),
@@ -1084,7 +1091,20 @@ fn cmd_log(
         now - ns
     });
 
-    let events = store.filtered_events(agent.as_deref(), file.as_deref(), abs_since, limit)?;
+    let events = match ipc::send(
+        &paths,
+        &ipc::Request::FilteredEvents {
+            agent: agent.clone(),
+            path_substring: file.clone(),
+            since_ns: abs_since,
+            limit,
+        },
+    ) {
+        Ok(ipc::Response::Events { events }) => events,
+        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(_) => anyhow::bail!("unexpected daemon response"),
+        Err(_) => store.filtered_events(agent.as_deref(), file.as_deref(), abs_since, limit)?,
+    };
 
     if events.is_empty() {
         if json {

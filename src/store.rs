@@ -605,7 +605,7 @@ pub struct PinRow {
     pub created_at_ns: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionRow {
     pub id: String,
     pub agent: String,
@@ -616,7 +616,7 @@ pub struct SessionRow {
     pub metadata: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EventRow {
     pub id: i64,
     pub ts_ns: i64,
