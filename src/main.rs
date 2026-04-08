@@ -681,7 +681,8 @@ fn cmd_doctor(fix: bool, json: bool) -> Result<()> {
             "ℹ no project-local wrappers installed in {}",
             paths.bin_dir.display()
         );
-        println!("  → use `au wrap install --agent codex` then `eval \"$(au wrap shellenv)\"`");
+        println!("  → use `au wrap auto` or `au wrap install --preset codex`");
+        println!("  → then run `eval \"$(au wrap shellenv)\"`");
     }
 
     let detected_wrappers = wrappers::detect_presets_in_path();

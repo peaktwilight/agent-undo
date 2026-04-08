@@ -102,7 +102,7 @@ codex run "..."
 
 1. **Watch.** A `notify-rs` filesystem watcher sees every write in the project tree. `.gitignore` and `.agent-undoignore` are respected.
 2. **Snapshot.** Each changed file is hashed with BLAKE3 and written into a content-addressable object store under `.agent-undo/objects/`. Identical content dedupes automatically.
-3. **Attribute.** Before an agent writes, its hook (`au hook pre`), session shim (`au session start`), or project-local wrapper (`au wrap install --agent ...`) drops a small active-session marker. The watcher reads that marker on each event and tags the resulting timeline entry with the agent, session id, and tool name. If no explicit session is active, `au` falls back to a best-effort local process fingerprint.
+3. **Attribute.** Before an agent writes, its hook (`au hook pre`), session shim (`au session start`), or project-local wrapper (`au wrap install --preset ...`) drops a small active-session marker. The watcher reads that marker on each event and tags the resulting timeline entry with the agent, session id, and tool name. If no explicit session is active, `au` falls back to a best-effort local process fingerprint.
 4. **Recover.** Every event lives in a SQLite timeline at `.agent-undo/timeline.db`. `restore`, `oops`, `diff`, `blame`, and `show` are all queries and inverse operations over that table. Every restore snapshots the current state first — you can never lose data by undoing.
 
 No cloud. No account. No telemetry. One binary. One SQLite file. Your code never leaves the machine.
