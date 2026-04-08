@@ -637,6 +637,19 @@ fn cmd_doctor(fix: bool) -> Result<()> {
                 "✓ daemon control socket responding at {}",
                 paths.socket_path.display()
             );
+            if let Some(ipc::Response::Status {
+                events,
+                active_session,
+            }) = &socket_status
+            {
+                println!("  daemon reports {} event(s)", events);
+                if let Some(active) = active_session {
+                    println!(
+                        "  active session via daemon: {} ({})",
+                        active.agent, active.session_id
+                    );
+                }
+            }
         } else {
             println!("⚠ daemon not running");
             println!("  → start it with `au serve --daemon`");
@@ -645,7 +658,7 @@ fn cmd_doctor(fix: bool) -> Result<()> {
 
     // 5. Active session marker.
     let active_path = paths.data_dir.join("active-session.json");
-    if active_path.exists() {
+    if socket_status.is_none() && active_path.exists() {
         println!(
             "ℹ active session marker present at {}",
             active_path.display()
