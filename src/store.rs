@@ -110,7 +110,8 @@ impl Store {
         let tmp = path.with_extension("tmp");
         {
             let mut f = fs::File::create(&tmp)?;
-            f.write_all(bytes)?;
+            let compressed = zstd::stream::encode_all(bytes, 0)?;
+            f.write_all(&compressed)?;
             f.sync_all()?;
         }
         fs::rename(&tmp, &path)?;
@@ -118,7 +119,11 @@ impl Store {
     }
 
     pub fn read_blob(&self, hash: &str) -> Result<Vec<u8>> {
-        Ok(fs::read(self.paths.object_path(hash))?)
+        let bytes = fs::read(self.paths.object_path(hash))?;
+        match zstd::stream::decode_all(bytes.as_slice()) {
+            Ok(decoded) => Ok(decoded),
+            Err(_) => Ok(bytes),
+        }
     }
 
     /// Hash a file from disk and return its bytes so we can deduplicate-check
@@ -625,4 +630,59 @@ pub struct EventRow {
     pub attribution: String,
     #[allow(dead_code)] // surfaced by `diff --session` in v0.3
     pub session_id: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Store;
+    use crate::paths::ProjectPaths;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_tmp_dir(label: &str) -> PathBuf {
+        let ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
+        let dir = std::env::temp_dir().join(format!("agent-undo-store-unit-{label}-{pid}-{ns}"));
+        fs::create_dir_all(&dir).expect("create tmp dir");
+        dir
+    }
+
+    #[test]
+    fn blob_roundtrip_reads_back_original_bytes() {
+        let dir = unique_tmp_dir("roundtrip");
+        let store = Store::init(ProjectPaths::for_root(dir.clone())).expect("init store");
+        let input = b"hello compressed world\n";
+
+        let hash = store.write_blob(input).expect("write blob");
+        let on_disk = fs::read(store.paths.object_path(&hash)).expect("read object");
+        assert_ne!(on_disk, input, "object should be stored compressed");
+
+        let output = store.read_blob(&hash).expect("read blob");
+        assert_eq!(output, input);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn blob_reader_falls_back_to_legacy_raw_objects() {
+        let dir = unique_tmp_dir("legacy");
+        let store = Store::init(ProjectPaths::for_root(dir.clone())).expect("init store");
+        let input = b"legacy raw object\n";
+        let hash = blake3::hash(input).to_hex().to_string();
+        let path = store.paths.object_path(&hash);
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create shard dir");
+        }
+        fs::write(&path, input).expect("write raw object");
+
+        let output = store.read_blob(&hash).expect("read legacy blob");
+        assert_eq!(output, input);
+
+        fs::remove_dir_all(&dir).ok();
+    }
 }
