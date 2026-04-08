@@ -5,3 +5,9 @@
 *.swp
 .env
 .env.local
+
+# Personal notes, roadmap scratchpad, launch checklists
+ROADMAP.md
+NOTES.md
+TODO.md
+SCRATCH.md
