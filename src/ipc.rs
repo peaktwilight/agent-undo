@@ -66,7 +66,6 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
     use std::thread;
-    use std::time::Duration;
 
     if paths.socket_path.exists() {
         let _ = std::fs::remove_file(&paths.socket_path);
@@ -74,30 +73,24 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
 
     let listener = UnixListener::bind(&paths.socket_path)
         .with_context(|| format!("binding {}", paths.socket_path.display()))?;
-    listener
-        .set_nonblocking(true)
-        .with_context(|| format!("setting nonblocking {}", paths.socket_path.display()))?;
 
     let stop = Arc::new(AtomicBool::new(false));
     let stop_thread = Arc::clone(&stop);
     let thread_paths = paths.clone();
 
-    let handle = thread::spawn(move || {
-        while !stop_thread.load(Ordering::Relaxed) {
-            match listener.accept() {
-                Ok((mut stream, _)) => {
-                    if let Err(err) = handle_client(&thread_paths, &mut stream) {
-                        let _ = write_error_response(
-                            &mut stream,
-                            &format!("daemon control error: {err}"),
-                        );
-                    }
+    let handle = thread::spawn(move || loop {
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                if stop_thread.load(Ordering::Relaxed) {
+                    break;
                 }
-                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(50));
+                if let Err(err) = handle_client(&thread_paths, &mut stream) {
+                    let _ =
+                        write_error_response(&mut stream, &format!("daemon control error: {err}"));
                 }
-                Err(_) => break,
             }
+            Err(_) if stop_thread.load(Ordering::Relaxed) => break,
+            Err(_) => continue,
         }
     });
 
@@ -176,6 +169,10 @@ pub struct SocketGuard {
 impl Drop for SocketGuard {
     fn drop(&mut self) {
         self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        #[cfg(unix)]
+        {
+            let _ = std::os::unix::net::UnixStream::connect(&self.path);
+        }
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
         }
