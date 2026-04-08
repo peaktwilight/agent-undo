@@ -1,6 +1,6 @@
 [package]
 name = "agent-undo"
-version = "0.0.1"
+version = "0.0.3"
 edition = "2021"
 description = "Ctrl-Z for AI coding agents. Snapshots every file write, attributes to agents, one-command rollback."
 license = "Apache-2.0"
