@@ -207,6 +207,11 @@ enum WrapperCmd {
         #[arg(long)]
         force: bool,
     },
+    /// Detect known terminal-agent CLIs on PATH and install wrappers for them.
+    Auto {
+        #[arg(long)]
+        force: bool,
+    },
     /// List the built-in wrapper presets.
     Presets,
     /// List installed project-local wrappers.
@@ -273,6 +278,7 @@ async fn main() -> Result<()> {
             binary,
             force,
         }) => cmd_wrap_install(preset, agent, binary, force),
+        Command::Wrap(WrapperCmd::Auto { force }) => cmd_wrap_auto(force),
         Command::Wrap(WrapperCmd::Presets) => cmd_wrap_presets(),
         Command::Wrap(WrapperCmd::List) => cmd_wrap_list(),
         Command::Wrap(WrapperCmd::Remove { binary }) => cmd_wrap_remove(binary),
@@ -979,6 +985,25 @@ fn cmd_wrap_presets() -> Result<()> {
             preset.name, preset.agent, preset.binary
         );
     }
+    Ok(())
+}
+
+fn cmd_wrap_auto(force: bool) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let au_bin = std::env::current_exe()?;
+    let presets = wrappers::detect_presets_in_path();
+    if presets.is_empty() {
+        println!("no known terminal-agent CLIs detected on PATH.");
+        return Ok(());
+    }
+
+    for preset in presets {
+        let wrapper_path =
+            wrappers::install_wrapper(&paths, &au_bin, preset.agent, preset.binary, force)?;
+        println!("installed wrapper: {}", wrapper_path.display());
+    }
+    println!("next:");
+    println!("  eval \"$(au wrap shellenv)\"");
     Ok(())
 }
 

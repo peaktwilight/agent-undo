@@ -76,6 +76,19 @@ pub fn preset(name: &str) -> Option<WrapperPreset> {
         .find(|preset| preset.name.eq_ignore_ascii_case(name))
 }
 
+pub fn detect_presets_in_path() -> Vec<WrapperPreset> {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let mut found = Vec::new();
+
+    for preset in PRESETS.iter().copied() {
+        if binary_in_path(preset.binary, &path) {
+            found.push(preset);
+        }
+    }
+
+    found
+}
+
 pub fn list_wrappers(paths: &ProjectPaths) -> Result<Vec<PathBuf>> {
     if !paths.bin_dir.exists() {
         return Ok(vec![]);
@@ -102,6 +115,10 @@ pub fn remove_wrapper(paths: &ProjectPaths, binary: &str) -> Result<bool> {
     }
     std::fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
     Ok(true)
+}
+
+fn binary_in_path(binary: &str, path: &std::ffi::OsStr) -> bool {
+    std::env::split_paths(path).any(|dir| dir.join(binary).is_file())
 }
 
 fn render_wrapper(au_bin: &std::path::Path, agent: &str, binary: &str) -> String {

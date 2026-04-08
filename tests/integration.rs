@@ -279,6 +279,47 @@ fn wrap_install_supports_presets() {
 }
 
 #[test]
+fn wrap_auto_installs_detected_presets() {
+    let dir = unique_tmp_dir("wrap_auto");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let fake_bin = unique_tmp_dir("wrap_auto_fakebin");
+    for binary in ["codex", "aider"] {
+        let path = fake_bin.join(binary);
+        fs::write(&path, "#!/usr/bin/env sh\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&path).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&path, perms).unwrap();
+        }
+    }
+
+    let path = format!(
+        "{}:{}",
+        fake_bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let output = Command::new(bin_path())
+        .args(["wrap", "auto"])
+        .current_dir(&dir)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code().unwrap_or(-1), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(".agent-undo/bin/codex"));
+    assert!(stdout.contains(".agent-undo/bin/aider"));
+    assert!(dir.join(".agent-undo/bin/codex").exists());
+    assert!(dir.join(".agent-undo/bin/aider").exists());
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&fake_bin).ok();
+}
+
+#[test]
 fn wrap_list_and_remove_manage_installed_wrappers() {
     let dir = unique_tmp_dir("wrap_manage");
     fs::write(dir.join("a.txt"), "x").unwrap();

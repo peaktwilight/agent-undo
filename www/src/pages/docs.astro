@@ -28,6 +28,7 @@ const commands = [
   ["au tui", "Browse the timeline interactively with a two-pane event/diff view."],
   ["au exec --agent X -- <command...>", "Wrap a command in an explicit session without an editor integration."],
   ["au wrap presets", "List the built-in presets for common terminal-agent CLIs."],
+  ["au wrap auto", "Detect known terminal-agent CLIs already on PATH and install wrappers for them."],
   ["au wrap install --preset X [--binary Y]", "Create a project-local wrapper in `.agent-undo/bin/` from a built-in preset."],
   ["au wrap install --agent X [--binary Y]", "Create a project-local wrapper in `.agent-undo/bin/` for a terminal agent CLI."],
   ["au wrap shellenv", "Print the shell line that prepends `.agent-undo/bin/` to PATH."],
@@ -75,6 +76,7 @@ au init --install-hooks
 
 # optional: install a preset wrapper for a terminal agent
 au wrap presets
+au wrap auto
 au wrap install --preset codex
 eval "$(au wrap shellenv)"
 codex run "..."

@@ -47,6 +47,7 @@ and the last burst of agent edits is rolled back, atomically, across every file 
 4. **Pin a known-good state before letting an agent loose.** `au pin "before refactor"` then `au unpin "before refactor"` later to restore.
 5. **Wrap terminal agents without changing how you invoke them.** `au wrap install --preset codex` then `eval "$(au wrap shellenv)"`.
 6. **Use built-in presets for common CLIs.** `au wrap presets`.
+7. **Auto-detect terminal agents already on your PATH.** `au wrap auto`.
 
 ## Install
 
@@ -87,6 +88,7 @@ For terminal-first agents without hook support:
 
 ```sh
 au wrap presets
+au wrap auto
 au wrap install --preset codex
 eval "$(au wrap shellenv)"
 codex run "..."
