@@ -1,0 +1,162 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import PageIntro from "../components/ui/PageIntro.astro";
+
+const pdfHref = "/papers/agent-undo-paper.pdf";
+const chartHref = "/papers/agent-undo-microeval.svg";
+const sourceHref = "https://github.com/peaktwilight/agent-undo/tree/main/paper";
+
+const syntheticMetrics = [
+  ["Workload", "Synthetic repo"],
+  ["Release binary", "4.85 MiB"],
+  ["`au init`", "294 ms"],
+  ["Write detection", "161 ms"],
+  ["`au oops --confirm`", "8.4 ms"],
+  ["Object store", "9.7 KiB"],
+  ["Timeline DB", "60.0 KiB"],
+  ["Recorded events", "87"],
+];
+
+const repoMetrics = [
+  ["Workload", "Repo snapshot"],
+  ["Release binary", "4.85 MiB"],
+  ["`au init`", "565 ms"],
+  ["Write detection", "167 ms"],
+  ["`au oops --confirm`", "12.5 ms"],
+  ["Object store", "480.4 KiB"],
+  ["Timeline DB", "68.0 KiB"],
+  ["Files / events", "97 / 102"],
+];
+---
+
+<Layout
+  title="agent-undo paper"
+  description="Technical paper draft for agent-undo: local-first provenance and rollback for AI coding agents, with artifact-level micro-evaluation."
+  canonical="https://agent-undo.com/paper"
+>
+  <Header />
+  <main class="mx-auto min-h-[70vh] max-w-7xl px-6 py-20">
+    <PageIntro
+      eyebrow="Paper"
+      title="Local-first provenance and rollback for AI coding agents"
+      description="A product-grade technical paper draft for agent-undo: problem framing, system design, artifact status, and a small measured evaluation from the current release build."
+      maxW="max-w-5xl"
+    />
+
+    <section class="mb-10 grid gap-4 md:grid-cols-[1.5fr_1fr]">
+      <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+        <h2 class="text-2xl font-semibold tracking-tight text-white">What it is</h2>
+        <p class="mt-4 max-w-3xl text-sm leading-7 text-white/65">
+          This paper treats <code>agent-undo</code> as a new infrastructure layer for agent-written
+          code: not a replacement for Git, but a local provenance-and-rollback substrate for file
+          writes that happen faster than commit cadence. It is written as design-and-artifact
+          collateral for the product, not as venue-shaped academic cosplay.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a
+            href={pdfHref}
+            class="inline-flex h-11 items-center rounded-md bg-amber-400 px-5 text-sm font-semibold text-black transition-colors hover:bg-amber-300"
+          >
+            Download PDF
+          </a>
+          <a
+            href={sourceHref}
+            rel="noopener"
+            class="inline-flex h-11 items-center rounded-md border border-white/15 px-5 text-sm font-medium text-white transition-colors hover:border-white/35 hover:bg-white/[0.05]"
+          >
+            Paper source
+          </a>
+        </div>
+      </div>
+
+      <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+        <h2 class="text-2xl font-semibold tracking-tight text-white">Identity</h2>
+        <dl class="mt-5 space-y-4 text-sm leading-7 text-white/65">
+          <div>
+            <dt class="text-white/40">Author</dt>
+            <dd class="text-white">Doruk Tan Ozturk</dd>
+          </div>
+          <div>
+            <dt class="text-white/40">Affiliation</dt>
+            <dd class="text-white">Independent Researcher</dd>
+          </div>
+          <div>
+            <dt class="text-white/40">Contact</dt>
+            <dd class="text-white">doruk@doruk.ch</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+      <div class="mb-5 flex items-end justify-between gap-6">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight text-white">Micro-evaluation</h2>
+          <p class="mt-3 max-w-3xl text-sm leading-7 text-white/65">
+          The paper now includes two artifact-level measurement passes from the current release
+          build: a controlled synthetic repository and a repo-shaped snapshot of agent-undo itself,
+          both reporting init time, write detection latency, rollback latency, and local store
+          growth.
+        </p>
+        </div>
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-3">
+        <img
+          src={chartHref}
+          alt="agent-undo micro-evaluation chart showing latency and artifact footprint"
+          class="block w-full"
+        />
+      </div>
+
+      <div class="mt-6 grid gap-4 lg:grid-cols-2">
+        {[syntheticMetrics, repoMetrics].map((group) => (
+          <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div class="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{group[0][1]}</div>
+            <div class="space-y-3">
+              {group.slice(1).map(([label, value]) => (
+                <div class="flex items-center justify-between gap-5 border-b border-white/6 pb-3 text-sm leading-6 last:border-b-0 last:pb-0">
+                  <div class="text-white/55">{label}</div>
+                  <div class="font-medium text-white">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+      <h2 class="text-2xl font-semibold tracking-tight text-white">What the paper claims</h2>
+      <ul class="mt-5 space-y-3 text-sm leading-7 text-white/65">
+        <li>Git captures human intent; agent-undo records agent action.</li>
+        <li>The product provides continuous local capture, explicit session attribution where hooks exist, and reversible grouped rollback.</li>
+        <li>The current artifact is real and measured, but not yet a full systems evaluation.</li>
+      </ul>
+    </section>
+
+    <section class="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+      <h2 class="text-2xl font-semibold tracking-tight text-white">Rollback case study</h2>
+      <p class="mt-4 max-w-3xl text-sm leading-7 text-white/65">
+        We also ran one explicit-session rollback case on a repo-shaped snapshot of the
+        <code>agent-undo</code> source tree. An attributed <code>codex</code> session modified
+        <code>README.md</code>, <code>ARCHITECTURE.md</code>, and
+        <code>PHILOSOPHY.md</code>; a subsequent <code>au oops --confirm</code> restored all
+        three to their pre-session state. That is still artifact-level evidence, but it is a real
+        repository case rather than a toy file fixture.
+      </p>
+    </section>
+
+    <section class="rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+      <h2 class="text-2xl font-semibold tracking-tight text-white">Open next steps</h2>
+      <ul class="mt-5 space-y-3 text-sm leading-7 text-white/65">
+        <li>Measure steady-state CPU overhead on a real coding session instead of just artifact latency.</li>
+        <li>Measure attribution accuracy across multiple editors and agent integrations.</li>
+        <li>Add a case-study section from real recovery sessions, not only synthetic writes.</li>
+      </ul>
+    </section>
+  </main>
+  <Footer />
+</Layout>

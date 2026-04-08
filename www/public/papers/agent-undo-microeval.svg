@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="430" viewBox="0 0 1100 430" fill="none">
+<rect x="0" y="0" width="1100" height="430" rx="0" fill="#0a0a0a" />
+<text x="70" y="56" fill="#f5f5f5" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="800" text-anchor="start">agent-undo micro-evaluation</text>
+<text x="70" y="82" fill="#bfbfbf" font-size="17" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="start">Synthetic repository and repo-snapshot measurements from the current release build</text>
+<rect x="70" y="110" width="450" height="250" rx="18" fill="#111111" />
+<text x="90" y="144" fill="#f5f5f5" font-size="22" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="start">Latency (ms)</text>
+<rect x="104" y="247.36598139140983" width="34" height="70.63401860859015" rx="8" fill="#f59e0b" />
+<text x="121.0" y="237.36598139140983" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">294.2</text>
+<rect x="164" y="182.40677966101697" width="34" height="135.59322033898303" rx="8" fill="#fbbf24" />
+<text x="181.0" y="172.40677966101697" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">564.7</text>
+<text x="138.0" y="344" fill="#d4d4d4" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="middle">init</text>
+<rect x="246" y="279.2520511334007" width="34" height="38.747948866599316" rx="8" fill="#f59e0b" />
+<text x="263.0" y="269.2520511334007" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">161.4</text>
+<rect x="306" y="277.95185758195663" width="34" height="40.04814241804337" rx="8" fill="#fbbf24" />
+<text x="323.0" y="267.95185758195663" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">166.8</text>
+<text x="280.0" y="344" fill="#d4d4d4" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="middle">detect</text>
+<rect x="388" y="315.9894476465171" width="34" height="2.0105523534829404" rx="8" fill="#f59e0b" />
+<text x="405.0" y="305.9894476465171" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">8.4</text>
+<rect x="448" y="315.0070468130267" width="34" height="2.9929531869733013" rx="8" fill="#fbbf24" />
+<text x="465.0" y="305.0070468130267" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">12.5</text>
+<text x="422.0" y="344" fill="#d4d4d4" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="middle">oops</text>
+<line x1="88" y1="278.0" x2="502" y2="278.0" stroke="#2c2c2c" stroke-width="1" />
+<line x1="88" y1="238.0" x2="502" y2="238.0" stroke="#2c2c2c" stroke-width="1" />
+<line x1="88" y1="198.0" x2="502" y2="198.0" stroke="#2c2c2c" stroke-width="1" />
+<line x1="88" y1="158.0" x2="502" y2="158.0" stroke="#2c2c2c" stroke-width="1" />
+<rect x="90" y="168" width="14" height="14" rx="3" fill="#f59e0b" />
+<text x="112" y="180" fill="#d4d4d4" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="start">synthetic</text>
+<rect x="210" y="168" width="14" height="14" rx="3" fill="#fbbf24" />
+<text x="232" y="180" fill="#d4d4d4" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="start">repo snapshot</text>
+<text x="500" y="144" fill="#bfbfbf" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="end">milliseconds</text>
+<rect x="580" y="110" width="450" height="250" rx="18" fill="#111111" />
+<text x="600" y="144" fill="#f5f5f5" font-size="22" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="start">Store growth (MiB)</text>
+<rect x="614" y="303.2125326132747" width="34" height="14.78746738672535" rx="8" fill="#f59e0b" />
+<text x="631.0" y="293.2125326132747" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">0.06</text>
+<rect x="674" y="300.25503913592956" width="34" height="17.74496086407042" rx="8" fill="#fbbf24" />
+<text x="691.0" y="290.25503913592956" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">0.07</text>
+<text x="648.0" y="344" fill="#d4d4d4" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="middle">timeline db</text>
+<rect x="756" y="315.61099607290635" width="34" height="2.389003927093682" rx="8" fill="#f59e0b" />
+<text x="773.0" y="305.61099607290635" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">0.01</text>
+<rect x="816" y="199.4814814814815" width="34" height="118.5185185185185" rx="8" fill="#fbbf24" />
+<text x="833.0" y="189.4814814814815" fill="#f5f5f5" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">0.47</text>
+<text x="790.0" y="344" fill="#d4d4d4" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="middle">objects</text>
+<line x1="598" y1="278.0" x2="1012" y2="278.0" stroke="#2c2c2c" stroke-width="1" />
+<line x1="598" y1="238.0" x2="1012" y2="238.0" stroke="#2c2c2c" stroke-width="1" />
+<line x1="598" y1="198.0" x2="1012" y2="198.0" stroke="#2c2c2c" stroke-width="1" />
+<line x1="598" y1="158.0" x2="1012" y2="158.0" stroke="#2c2c2c" stroke-width="1" />
+<rect x="600" y="168" width="14" height="14" rx="3" fill="#f59e0b" />
+<text x="622" y="180" fill="#d4d4d4" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="start">synthetic</text>
+<rect x="720" y="168" width="14" height="14" rx="3" fill="#fbbf24" />
+<text x="742" y="180" fill="#d4d4d4" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="start">repo snapshot</text>
+<text x="1010" y="144" fill="#bfbfbf" font-size="14" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="end">MiB</text>
+<text x="70" y="406" fill="#d4d4d4" font-size="15" font-family="Inter, Arial, sans-serif" font-weight="500" text-anchor="start">Release binary: 4.85 MiB  ·  synthetic: 87 events  ·  repo snapshot: 94 files / 99 events</text>
+</svg>

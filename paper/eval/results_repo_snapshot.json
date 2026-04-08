@@ -1,0 +1,16 @@
+{
+  "binary_size_bytes": 5086736,
+  "init_ms": 564.7182089742273,
+  "write_detection_ms": 166.79237503558397,
+  "oops_ms": 12.465041829273105,
+  "object_store_bytes": 492429,
+  "timeline_db_bytes": 73728,
+  "events_count": 102,
+  "files_count": 97,
+  "restore_ok": true,
+  "touched_files": [
+    "README.md",
+    "ARCHITECTURE.md",
+    "PHILOSOPHY.md"
+  ]
+}

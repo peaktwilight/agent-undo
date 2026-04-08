@@ -1,0 +1,60 @@
+---
+import SectionHeader from "../ui/SectionHeader.astro";
+---
+
+<section class="border-b border-white/5">
+  <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+    <SectionHeader eyebrow="Technical paper" align="left" maxW="max-w-5xl" mb="mb-10">
+      A product-grade paper for <span class="text-amber-300">agent-undo</span>,
+      not hand-wavy launch fluff.
+    </SectionHeader>
+
+    <div class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <div data-reveal class="rounded-3xl border border-white/10 bg-white/[0.03] p-7">
+        <p class="max-w-3xl text-[16px] leading-8 text-white/65">
+          The paper frames agent-undo as a local provenance-and-rollback substrate for agent-written
+          code, then backs it with a real artifact snapshot, two workload measurements, and explicit
+          limits on what is still unmeasured.
+        </p>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a
+            href="/paper"
+            class="inline-flex h-11 items-center rounded-md bg-amber-400 px-5 text-sm font-semibold text-black transition-colors hover:bg-amber-300"
+          >
+            Read the paper page
+          </a>
+          <a
+            href="/papers/agent-undo-paper.pdf"
+            class="inline-flex h-11 items-center rounded-md border border-white/15 px-5 text-sm font-medium text-white transition-colors hover:border-white/35 hover:bg-white/[0.05]"
+          >
+            Download PDF
+          </a>
+        </div>
+
+        <div class="mt-8 grid gap-3 sm:grid-cols-3">
+          <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">binary</div>
+            <div class="mt-2 text-lg font-semibold tracking-tight text-white">4.85 MiB</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">write detect</div>
+            <div class="mt-2 text-lg font-semibold tracking-tight text-white">157–161 ms</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">oops</div>
+            <div class="mt-2 text-lg font-semibold tracking-tight text-white">7–8 ms</div>
+          </div>
+        </div>
+      </div>
+
+      <div data-reveal class="overflow-hidden rounded-3xl border border-white/10 bg-black/20 p-3">
+        <img
+          src="/papers/agent-undo-microeval.svg"
+          alt="agent-undo micro-evaluation chart comparing synthetic and repo-snapshot workloads"
+          class="block w-full"
+        />
+      </div>
+    </div>
+  </div>
+</section>

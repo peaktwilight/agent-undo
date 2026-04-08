@@ -1,0 +1,9 @@
+{
+  "binary_size_bytes": 5086736,
+  "init_ms": 294.1763340495527,
+  "write_detection_ms": 161.37733310461044,
+  "oops_ms": 8.373541990295053,
+  "object_store_bytes": 9926,
+  "timeline_db_bytes": 61440,
+  "events_count": 87
+}

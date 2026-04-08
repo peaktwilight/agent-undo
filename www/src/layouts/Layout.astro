@@ -4,15 +4,16 @@ import "../styles/global.css";
 interface Props {
   title?: string;
   description?: string;
+  canonical?: string;
+  ogImage?: string;
 }
 
 const {
   title = "agent-undo — git for humans, au for agents",
   description = "Local-first rollback for AI coding agents. A single Rust binary that snapshots every file your agent writes and lets you undo any session with one command. git versions your intent. au records the agent's. They live alongside each other.",
+  canonical = "https://agent-undo.com/",
+  ogImage = "https://agent-undo.com/og-image.png",
 } = Astro.props;
-
-const canonical = "https://agent-undo.com/";
-const ogImage = "https://agent-undo.com/og-image.png";
 ---
 
 <!doctype html>

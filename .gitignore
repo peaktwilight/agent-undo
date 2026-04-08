@@ -6,7 +6,12 @@
 .env
 .env.local
 .omx*
-paper*
+/paper/main.aux
+/paper/main.bbl
+/paper/main.blg
+/paper/main.log
+/paper/main.out
+/paper/main.pdf
 
 # Personal notes, roadmap scratchpad, launch checklists
 ROADMAP.md
