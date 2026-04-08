@@ -70,24 +70,6 @@ const repoMetrics = [
           </a>
         </div>
       </div>
-
-      <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7">
-        <h2 class="text-2xl font-semibold tracking-tight text-white">Identity</h2>
-        <dl class="mt-5 space-y-4 text-sm leading-7 text-white/65">
-          <div>
-            <dt class="text-white/40">Author</dt>
-            <dd class="text-white">Doruk Tan Ozturk</dd>
-          </div>
-          <div>
-            <dt class="text-white/40">Affiliation</dt>
-            <dd class="text-white">Independent Researcher</dd>
-          </div>
-          <div>
-            <dt class="text-white/40">Contact</dt>
-            <dd class="text-white">doruk@doruk.ch</dd>
-          </div>
-        </dl>
-      </div>
     </section>
 
     <section class="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
@@ -128,34 +110,13 @@ const repoMetrics = [
       </div>
     </section>
 
-    <section class="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
-      <h2 class="text-2xl font-semibold tracking-tight text-white">What the paper claims</h2>
-      <ul class="mt-5 space-y-3 text-sm leading-7 text-white/65">
-        <li>Git captures human intent; agent-undo records agent action.</li>
-        <li>The product provides continuous local capture, explicit session attribution where hooks exist, and reversible grouped rollback.</li>
-        <li>The current artifact is real and measured, but not yet a full systems evaluation.</li>
-      </ul>
-    </section>
-
-    <section class="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-7">
-      <h2 class="text-2xl font-semibold tracking-tight text-white">Rollback case study</h2>
-      <p class="mt-4 max-w-3xl text-sm leading-7 text-white/65">
-        We also ran one explicit-session rollback case on a repo-shaped snapshot of the
-        <code>agent-undo</code> source tree. An attributed <code>codex</code> session modified
-        <code>README.md</code>, <code>ARCHITECTURE.md</code>, and
-        <code>PHILOSOPHY.md</code>; a subsequent <code>au oops --confirm</code> restored all
-        three to their pre-session state. That is still artifact-level evidence, but it is a real
-        repository case rather than a toy file fixture.
-      </p>
-    </section>
-
     <section class="rounded-3xl border border-white/10 bg-white/[0.03] p-7">
-      <h2 class="text-2xl font-semibold tracking-tight text-white">Open next steps</h2>
-      <ul class="mt-5 space-y-3 text-sm leading-7 text-white/65">
-        <li>Measure steady-state CPU overhead on a real coding session instead of just artifact latency.</li>
-        <li>Measure attribution accuracy across multiple editors and agent integrations.</li>
-        <li>Add a case-study section from real recovery sessions, not only synthetic writes.</li>
-      </ul>
+      <h2 class="text-2xl font-semibold tracking-tight text-white">Why keep this page</h2>
+      <p class="mt-4 max-w-3xl text-sm leading-7 text-white/65">
+        So the PDF has a stable home, the measurements have one public summary, and anyone curious
+        about the technical depth can get to the writeup without turning the homepage into a paper
+        launch page.
+      </p>
     </section>
   </main>
   <Footer />

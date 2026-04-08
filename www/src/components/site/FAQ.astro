@@ -34,10 +34,6 @@ const faqs: { q: string; a: string }[] = [
     a: "Content-addressable and deduped — usually under 100 MB on an active project. <code class=\"font-mono text-white/85\">au gc</code> uses a 7-day cutoff by default and you can change that in <code class=\"font-mono text-white/85\">.agent-undo/config.toml</code>.",
   },
   {
-    q: "Is there a technical paper for this?",
-    a: "Yes. There is a product-grade paper with system design, artifact status, and measured micro-evaluation at <a href=\"/paper\" class=\"underline decoration-white/20 underline-offset-4 hover:decoration-white/50\">/paper</a>, plus a downloadable PDF if you want the full writeup.",
-  },
-  {
     q: "Can I run it on CI?",
     a: "You can, but it's built for local use. CI is already good at capturing state via commits and artifacts. <span class=\"text-amber-300\">au</span> fills the gap in the inner-loop dev environment, where agents move faster than your commit cadence.",
   },
@@ -46,7 +42,7 @@ const faqs: { q: string; a: string }[] = [
 <section class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
     <SectionHeader eyebrow="Questions">
-      Eight things developers ask<br />
+      Seven things developers ask<br />
       <span class="text-white/45">before they install.</span>
     </SectionHeader>
 
