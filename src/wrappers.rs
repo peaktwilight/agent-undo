@@ -3,6 +3,31 @@ use std::path::PathBuf;
 
 use crate::paths::ProjectPaths;
 
+#[derive(Debug, Clone, Copy)]
+pub struct WrapperPreset {
+    pub name: &'static str,
+    pub agent: &'static str,
+    pub binary: &'static str,
+}
+
+const PRESETS: &[WrapperPreset] = &[
+    WrapperPreset {
+        name: "codex",
+        agent: "codex",
+        binary: "codex",
+    },
+    WrapperPreset {
+        name: "aider",
+        agent: "aider",
+        binary: "aider",
+    },
+    WrapperPreset {
+        name: "claude",
+        agent: "claude-code",
+        binary: "claude",
+    },
+];
+
 pub fn install_wrapper(
     paths: &ProjectPaths,
     au_bin: &std::path::Path,
@@ -38,6 +63,17 @@ pub fn install_wrapper(
 
 pub fn shellenv(paths: &ProjectPaths) -> String {
     format!("export PATH=\"{}:$PATH\"", paths.bin_dir.display())
+}
+
+pub fn presets() -> &'static [WrapperPreset] {
+    PRESETS
+}
+
+pub fn preset(name: &str) -> Option<WrapperPreset> {
+    PRESETS
+        .iter()
+        .copied()
+        .find(|preset| preset.name.eq_ignore_ascii_case(name))
 }
 
 pub fn list_wrappers(paths: &ProjectPaths) -> Result<Vec<PathBuf>> {

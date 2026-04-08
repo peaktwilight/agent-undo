@@ -199,12 +199,16 @@ enum WrapperCmd {
     /// Install a project-local wrapper binary into .agent-undo/bin/
     Install {
         #[arg(long)]
-        agent: String,
+        preset: Option<String>,
+        #[arg(long)]
+        agent: Option<String>,
         #[arg(long)]
         binary: Option<String>,
         #[arg(long)]
         force: bool,
     },
+    /// List the built-in wrapper presets.
+    Presets,
     /// List installed project-local wrappers.
     List,
     /// Remove a project-local wrapper binary from .agent-undo/bin/
@@ -264,10 +268,12 @@ async fn main() -> Result<()> {
             command,
         } => cmd_exec(agent, label, command),
         Command::Wrap(WrapperCmd::Install {
+            preset,
             agent,
             binary,
             force,
-        }) => cmd_wrap_install(agent, binary, force),
+        }) => cmd_wrap_install(preset, agent, binary, force),
+        Command::Wrap(WrapperCmd::Presets) => cmd_wrap_presets(),
         Command::Wrap(WrapperCmd::List) => cmd_wrap_list(),
         Command::Wrap(WrapperCmd::Remove { binary }) => cmd_wrap_remove(binary),
         Command::Wrap(WrapperCmd::Shellenv) => cmd_wrap_shellenv(),
@@ -936,16 +942,43 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
     }
 }
 
-fn cmd_wrap_install(agent: String, binary: Option<String>, force: bool) -> Result<()> {
+fn cmd_wrap_install(
+    preset: Option<String>,
+    agent: Option<String>,
+    binary: Option<String>,
+    force: bool,
+) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let au_bin = std::env::current_exe()?;
-    let binary = binary.unwrap_or_else(|| agent.clone());
+    let (agent, binary) = if let Some(preset_name) = preset {
+        let preset = wrappers::preset(&preset_name)
+            .ok_or_else(|| anyhow::anyhow!("unknown preset `{preset_name}`"))?;
+        (
+            preset.agent.to_string(),
+            binary.unwrap_or_else(|| preset.binary.to_string()),
+        )
+    } else {
+        let agent = agent
+            .ok_or_else(|| anyhow::anyhow!("pass either --preset <name> or --agent <name>"))?;
+        let binary = binary.unwrap_or_else(|| agent.clone());
+        (agent, binary)
+    };
     let wrapper_path = wrappers::install_wrapper(&paths, &au_bin, &agent, &binary, force)?;
 
     println!("installed wrapper: {}", wrapper_path.display());
     println!("next:");
     println!("  eval \"$(au wrap shellenv)\"");
     println!("  {} --help", binary);
+    Ok(())
+}
+
+fn cmd_wrap_presets() -> Result<()> {
+    for preset in wrappers::presets() {
+        println!(
+            "{:<10} agent={} binary={}",
+            preset.name, preset.agent, preset.binary
+        );
+    }
     Ok(())
 }
 

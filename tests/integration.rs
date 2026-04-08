@@ -251,6 +251,34 @@ fn wrap_install_creates_working_terminal_agent_wrapper() {
 }
 
 #[test]
+fn wrap_presets_lists_common_terminal_agents() {
+    let dir = unique_tmp_dir("wrap_presets");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["wrap", "presets"]);
+    assert_eq!(code, 0, "wrap presets failed: {err}");
+    assert!(out.contains("codex"));
+    assert!(out.contains("aider"));
+    assert!(out.contains("claude"));
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn wrap_install_supports_presets() {
+    let dir = unique_tmp_dir("wrap_preset_install");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["wrap", "install", "--preset", "codex"]);
+    assert_eq!(code, 0, "wrap preset install failed: {out}{err}");
+    assert!(dir.join(".agent-undo/bin/codex").exists());
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn wrap_list_and_remove_manage_installed_wrappers() {
     let dir = unique_tmp_dir("wrap_manage");
     fs::write(dir.join("a.txt"), "x").unwrap();

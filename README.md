@@ -45,7 +45,8 @@ and the last burst of agent edits is rolled back, atomically, across every file 
 2. **Audit what an agent actually changed.** `au log --agent claude-code --since 1h` and `au diff --session <id>`.
 3. **Per-line agent attribution.** `au blame <file>` — like `git blame`, but tells you which agent (or human) wrote each line.
 4. **Pin a known-good state before letting an agent loose.** `au pin "before refactor"` then `au unpin "before refactor"` later to restore.
-5. **Wrap terminal agents without changing how you invoke them.** `au wrap install --agent codex` then `eval "$(au wrap shellenv)"`.
+5. **Wrap terminal agents without changing how you invoke them.** `au wrap install --preset codex` then `eval "$(au wrap shellenv)"`.
+6. **Use built-in presets for common CLIs.** `au wrap presets`.
 
 ## Install
 
@@ -85,7 +86,8 @@ au doctor --fix               # diagnose + repair common local issues
 For terminal-first agents without hook support:
 
 ```sh
-au wrap install --agent codex
+au wrap presets
+au wrap install --preset codex
 eval "$(au wrap shellenv)"
 codex run "..."
 ```
