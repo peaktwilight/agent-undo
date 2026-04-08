@@ -29,22 +29,18 @@ const { installCmd, githubUrl } = Astro.props;
 
         <h1
           data-reveal
-          class="text-[clamp(2.4rem,5.4vw,5.25rem)] font-black leading-[0.95] tracking-[-0.02em] text-white"
+          class="text-[clamp(2.4rem,5.4vw,5.25rem)] font-black leading-[0.98] tracking-[-0.018em] text-white"
           style="font-family: 'Outfit', 'Inter Variable', sans-serif; font-feature-settings: 'cv11', 'ss01';"
         >
           git for humans.<br />
-          <span class="relative inline-block">
-            <span class="relative z-10 text-cyan-400">au</span>
-            <span
-              aria-hidden="true"
-              class="absolute inset-0 -z-0 blur-2xl"
-              style="background: radial-gradient(closest-side, rgba(6,182,212,0.35), rgba(6,182,212,0) 70%);"
-            ></span>
-          </span>
+          <span
+            class="text-cyan-400"
+            style="text-shadow: 0 0 48px rgba(6,182,212,0.55), 0 0 96px rgba(6,182,212,0.25);"
+          >au</span>
           for agents.
         </h1>
 
-        <div data-reveal class="mt-10 flex flex-wrap items-center gap-4">
+        <div data-reveal class="mt-12 flex flex-wrap items-center gap-4">
           <button
             type="button"
             class="copy-btn group inline-flex h-12 items-center gap-3 rounded-md bg-cyan-400 px-6 font-mono text-[14px] font-semibold text-black transition-colors hover:bg-cyan-300"
@@ -63,7 +59,7 @@ const { installCmd, githubUrl } = Astro.props;
           </button>
         </div>
 
-        <p data-reveal class="mt-8 max-w-2xl text-sm text-white/45">
+        <p data-reveal class="mt-10 max-w-2xl text-sm text-white/45">
           3.9&nbsp;MB Rust binary &middot;
           <a href="https://crates.io/crates/agent-undo" rel="noopener" class="text-white underline decoration-cyan-400/40 underline-offset-4 hover:decoration-cyan-400">agent-undo</a>
           on crates.io &middot; Apache-2.0
