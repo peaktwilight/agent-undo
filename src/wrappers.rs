@@ -40,6 +40,34 @@ pub fn shellenv(paths: &ProjectPaths) -> String {
     format!("export PATH=\"{}:$PATH\"", paths.bin_dir.display())
 }
 
+pub fn list_wrappers(paths: &ProjectPaths) -> Result<Vec<PathBuf>> {
+    if !paths.bin_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(&paths.bin_dir)
+        .with_context(|| format!("reading {}", paths.bin_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            out.push(path);
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
+pub fn remove_wrapper(paths: &ProjectPaths, binary: &str) -> Result<bool> {
+    let path = paths.bin_dir.join(binary);
+    if !path.exists() {
+        return Ok(false);
+    }
+    std::fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
+    Ok(true)
+}
+
 fn render_wrapper(au_bin: &std::path::Path, agent: &str, binary: &str) -> String {
     format!(
         r#"#!/usr/bin/env sh

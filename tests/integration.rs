@@ -251,6 +251,39 @@ fn wrap_install_creates_working_terminal_agent_wrapper() {
 }
 
 #[test]
+fn wrap_list_and_remove_manage_installed_wrappers() {
+    let dir = unique_tmp_dir("wrap_manage");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (install_code, _, install_err) = run(
+        &dir,
+        &["wrap", "install", "--agent", "codex", "--binary", "codex"],
+    );
+    assert_eq!(install_code, 0, "wrap install failed: {install_err}");
+
+    let (list_code, list_out, list_err) = run(&dir, &["wrap", "list"]);
+    assert_eq!(list_code, 0, "wrap list failed: {list_err}");
+    assert!(
+        list_out.contains(".agent-undo/bin/codex"),
+        "wrap list should include installed wrapper: {list_out}"
+    );
+
+    let (remove_code, remove_out, remove_err) = run(&dir, &["wrap", "remove", "codex"]);
+    assert_eq!(remove_code, 0, "wrap remove failed: {remove_err}");
+    assert!(
+        remove_out.contains("removed wrapper"),
+        "unexpected remove output: {remove_out}"
+    );
+    assert!(
+        !dir.join(".agent-undo/bin/codex").exists(),
+        "wrapper file should be removed"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn session_start_and_end_manage_active_session_marker() {
     let dir = unique_tmp_dir("session_lifecycle");
     fs::write(dir.join("f.rs"), "original").unwrap();

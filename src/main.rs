@@ -205,6 +205,10 @@ enum WrapperCmd {
         #[arg(long)]
         force: bool,
     },
+    /// List installed project-local wrappers.
+    List,
+    /// Remove a project-local wrapper binary from .agent-undo/bin/
+    Remove { binary: String },
     /// Print the shell line that prepends .agent-undo/bin to PATH.
     Shellenv,
 }
@@ -264,6 +268,8 @@ async fn main() -> Result<()> {
             binary,
             force,
         }) => cmd_wrap_install(agent, binary, force),
+        Command::Wrap(WrapperCmd::List) => cmd_wrap_list(),
+        Command::Wrap(WrapperCmd::Remove { binary }) => cmd_wrap_remove(binary),
         Command::Wrap(WrapperCmd::Shellenv) => cmd_wrap_shellenv(),
         Command::Session(SessionCmd::Start { agent, metadata }) => {
             cmd_session_start(agent, metadata)
@@ -613,6 +619,22 @@ fn cmd_doctor(fix: bool) -> Result<()> {
         paths.objects_dir.display()
     );
 
+    // 3b. Wrapper bin status.
+    let wrapper_count = wrappers::list_wrappers(&paths).unwrap_or_default().len();
+    if wrapper_count > 0 {
+        println!(
+            "✓ {wrapper_count} wrapper(s) in {}",
+            paths.bin_dir.display()
+        );
+        println!("  shellenv: {}", wrappers::shellenv(&paths));
+    } else {
+        println!(
+            "ℹ no project-local wrappers installed in {}",
+            paths.bin_dir.display()
+        );
+        println!("  → use `au wrap install --agent codex` then `eval \"$(au wrap shellenv)\"`");
+    }
+
     // 4. Daemon status.
     let pidfile = paths.data_dir.join("daemon.pid");
     let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
@@ -930,6 +952,29 @@ fn cmd_wrap_install(agent: String, binary: Option<String>, force: bool) -> Resul
 fn cmd_wrap_shellenv() -> Result<()> {
     let paths = ProjectPaths::discover()?;
     println!("{}", wrappers::shellenv(&paths));
+    Ok(())
+}
+
+fn cmd_wrap_list() -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let wrappers = wrappers::list_wrappers(&paths)?;
+    if wrappers.is_empty() {
+        println!("no project-local wrappers installed.");
+        return Ok(());
+    }
+    for wrapper in wrappers {
+        println!("{}", wrapper.display());
+    }
+    Ok(())
+}
+
+fn cmd_wrap_remove(binary: String) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    if wrappers::remove_wrapper(&paths, &binary)? {
+        println!("removed wrapper: {}", paths.bin_dir.join(&binary).display());
+    } else {
+        println!("no wrapper installed for {}", binary);
+    }
     Ok(())
 }
 
