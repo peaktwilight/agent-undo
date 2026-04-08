@@ -596,7 +596,7 @@ pub struct NewEvent {
     pub tool_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[allow(dead_code)] // surfaced by `agent-undo pin` listing in v0.3
 pub struct PinRow {
     pub id: i64,

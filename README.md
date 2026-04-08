@@ -81,8 +81,10 @@ au log --json                 # scriptable timeline output
 au status --json              # machine-readable health/status
 au sessions                   # list recent agent sessions
 au sessions --json            # machine-readable session rows
+au pin --list --json          # machine-readable pin rows
 au pin --list                 # inspect saved restore points
 au oops                       # undo the last burst of agent edits
+au doctor --json              # machine-readable health report
 au doctor --fix               # diagnose + repair common local issues
 ```
 

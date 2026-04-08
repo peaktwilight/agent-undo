@@ -831,6 +831,23 @@ fn pin_list_shows_existing_pins() {
 }
 
 #[test]
+fn pin_list_json_outputs_machine_readable_rows() {
+    let dir = unique_tmp_dir("pin_list_json");
+    fs::write(dir.join("file.rs"), "v1").unwrap();
+    run(&dir, &["init"]);
+    run(&dir, &["pin", "before-refactor"]);
+
+    let (code, out, err) = run(&dir, &["pin", "--list", "--json"]);
+    assert_eq!(code, 0, "pin --list --json failed: {err}");
+    let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let rows = parsed.as_array().expect("pin list json should be an array");
+    assert!(!rows.is_empty());
+    assert_eq!(rows[0]["label"], "before-refactor");
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn doctor_reports_status_correctly() {
     let dir = unique_tmp_dir("doctor");
     fs::write(dir.join("a.txt"), "hi").unwrap();
@@ -860,6 +877,23 @@ fn doctor_reports_status_correctly() {
         out.contains("daemon not running"),
         "should flag missing daemon: {out}"
     );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn doctor_json_outputs_machine_readable_health() {
+    let dir = unique_tmp_dir("doctor_json");
+    fs::write(dir.join("a.txt"), "hi").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["doctor", "--json"]);
+    assert_eq!(code, 0, "doctor --json failed: {err}");
+    let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(parsed["events"], 1);
+    assert!(parsed.get("wrappers").is_some());
+    assert!(parsed.get("daemon").is_some());
+    assert!(parsed.get("claude_hooks").is_some());
 
     fs::remove_dir_all(&dir).ok();
 }

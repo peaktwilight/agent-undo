@@ -22,7 +22,7 @@ const commands = [
   ["au show <event-id> [--before|--after]", "Print stored file contents for one side of an event."],
   ["au restore <event-id> | --file <path> | --session <id>", "Restore a single event, a file’s last change, or an explicit session."],
   ["au oops", "Undo the latest explicit session when present, otherwise the latest recent burst."],
-  ["au pin <label> | au pin --list", "Create and inspect named restore points."],
+  ["au pin <label> | au pin --list [--json]", "Create and inspect named restore points."],
   ["au unpin <label>", "Restore the whole project to a named pin’s state."],
   ["au blame <file>", "Show per-line attribution from the timeline, similar to `git blame`."],
   ["au tui", "Browse the timeline interactively with a two-pane event/diff view."],
@@ -33,7 +33,7 @@ const commands = [
   ["au wrap install --agent X [--binary Y]", "Create a project-local wrapper in `.agent-undo/bin/` for a terminal agent CLI."],
   ["au wrap shellenv", "Print the shell line that prepends `.agent-undo/bin/` to PATH."],
   ["au gc", "Garbage-collect old events and orphaned blobs using `.agent-undo/config.toml`."],
-  ["au doctor [--fix]", "Diagnose local setup and optionally repair common issues."],
+  ["au doctor [--fix] [--json]", "Diagnose local setup and optionally repair common issues."],
 ];
 ---
 

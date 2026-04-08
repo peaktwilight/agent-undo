@@ -138,6 +138,8 @@ enum Command {
         label: Option<String>,
         #[arg(long)]
         list: bool,
+        #[arg(long)]
+        json: bool,
     },
 
     /// Restore the project to a previously pinned state.
@@ -178,6 +180,8 @@ enum Command {
     Doctor {
         #[arg(long)]
         fix: bool,
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -269,7 +273,7 @@ async fn main() -> Result<()> {
             session,
         } => cmd_restore(event_id, file, session),
         Command::Oops { confirm } => cmd_oops(confirm),
-        Command::Pin { label, list } => cmd_pin(label, list),
+        Command::Pin { label, list, json } => cmd_pin(label, list, json),
         Command::Unpin { label } => cmd_unpin(label),
         Command::Blame { file } => cmd_blame(file),
         Command::Tui => cmd_tui(),
@@ -296,7 +300,7 @@ async fn main() -> Result<()> {
         Command::Hook(HookCmd::Pre) => hook::handle_pre(),
         Command::Hook(HookCmd::Post) => hook::handle_post(),
         Command::Gc => cmd_gc(),
-        Command::Doctor { fix } => cmd_doctor(fix),
+        Command::Doctor { fix, json } => cmd_doctor(fix, json),
     }
 }
 
@@ -596,7 +600,11 @@ fn parse_since(s: &str) -> Result<i64> {
     Ok(n * mult)
 }
 
-fn cmd_doctor(fix: bool) -> Result<()> {
+fn cmd_doctor(fix: bool, json: bool) -> Result<()> {
+    if json {
+        return cmd_doctor_json(fix);
+    }
+
     println!("agent-undo doctor");
     println!("=================");
     println!();
@@ -852,6 +860,97 @@ fn cmd_doctor(fix: bool) -> Result<()> {
     Ok(())
 }
 
+fn cmd_doctor_json(fix: bool) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths.clone())?;
+
+    let config = config::AppConfig::load(&paths).ok();
+    let wrapper_paths = wrappers::list_wrappers(&paths).unwrap_or_default();
+    let wrapper_names = wrappers::installed_wrapper_names(&paths).unwrap_or_default();
+    let detected_wrappers = wrappers::detect_presets_in_path();
+    let missing_wrappers: Vec<_> = detected_wrappers
+        .iter()
+        .filter(|preset| !wrapper_names.contains(preset.binary))
+        .map(|preset| preset.binary)
+        .collect();
+
+    let pidfile = paths.data_dir.join("daemon.pid");
+    let pid = read_pidfile(&pidfile);
+    let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
+    let socket_hint = std::fs::read_to_string(&paths.socket_info_path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| paths.socket_path.display().to_string());
+
+    let active_marker_path = paths.data_dir.join("active-session.json");
+    let active_marker_present = active_marker_path.exists();
+
+    let claude_settings = install::claude_settings_path();
+    let claude_hook_installed = claude_settings
+        .as_ref()
+        .and_then(|settings| std::fs::read_to_string(settings).ok())
+        .map(|content| content.contains("au hook") || content.contains("agent-undo hook"))
+        .unwrap_or(false);
+
+    let removed_orphans = if fix {
+        Some(store.sweep_orphan_blobs()?)
+    } else {
+        None
+    };
+
+    let payload = serde_json::json!({
+        "root": paths.root,
+        "data_dir": paths.data_dir,
+        "database": paths.db_path,
+        "events": store.event_count()?,
+        "config": {
+            "path": paths.config_path,
+            "loaded": config.is_some(),
+            "gc_keep_last": config.as_ref().map(|cfg| cfg.gc.keep_last.clone()),
+            "watch_max_file_size_mb": config.as_ref().map(|cfg| cfg.watch.max_file_size_mb),
+        },
+        "wrappers": {
+            "bin_dir": paths.bin_dir,
+            "installed": wrapper_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+            "detected_on_path": detected_wrappers.iter().map(|preset| preset.name).collect::<Vec<_>>(),
+            "missing_for_detected": missing_wrappers,
+        },
+        "daemon": {
+            "pidfile": pidfile,
+            "pid": pid,
+            "pid_alive": pid.map(process_alive),
+            "socket_path": paths.socket_path,
+            "socket_info_path": paths.socket_info_path,
+            "socket_hint": socket_hint,
+            "status": match &socket_status {
+                Some(ipc::Response::Status { events, active_session }) => serde_json::json!({
+                    "running": true,
+                    "events": events,
+                    "active_session": active_session,
+                }),
+                _ => serde_json::json!({
+                    "running": false,
+                }),
+            }
+        },
+        "active_session_marker": {
+            "path": active_marker_path,
+            "present": active_marker_present,
+        },
+        "claude_hooks": {
+            "settings_path": claude_settings,
+            "installed": claude_hook_installed,
+        },
+        "fix": {
+            "requested": fix,
+            "orphan_blobs_removed": removed_orphans,
+        }
+    });
+
+    println!("{}", serde_json::to_string_pretty(&payload)?);
+    Ok(())
+}
+
 fn count_blobs(objects_dir: &std::path::Path) -> usize {
     let mut count = 0;
     if let Ok(shards) = std::fs::read_dir(objects_dir) {
@@ -866,7 +965,7 @@ fn count_blobs(objects_dir: &std::path::Path) -> usize {
     count
 }
 
-fn cmd_pin(label: Option<String>, list: bool) -> Result<()> {
+fn cmd_pin(label: Option<String>, list: bool, json: bool) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
 
@@ -875,6 +974,10 @@ fn cmd_pin(label: Option<String>, list: bool) -> Result<()> {
             anyhow::bail!("use `au pin --list` or `au pin <label>`, not both");
         }
         let pins = store.list_pins()?;
+        if json {
+            println!("{}", serde_json::to_string_pretty(&pins)?);
+            return Ok(());
+        }
         if pins.is_empty() {
             println!("no pins yet.");
             return Ok(());
@@ -890,6 +993,10 @@ fn cmd_pin(label: Option<String>, list: bool) -> Result<()> {
             );
         }
         return Ok(());
+    }
+
+    if json {
+        anyhow::bail!("use `--json` with `au pin --list`");
     }
 
     let label = label.ok_or_else(|| anyhow::anyhow!("usage: au pin <label>  OR  au pin --list"))?;
