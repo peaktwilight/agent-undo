@@ -30,6 +30,17 @@ pub enum Request {
         since_ns: Option<i64>,
         limit: usize,
     },
+    SessionEvents {
+        session_id: String,
+    },
+    DiffEvent {
+        event_id: i64,
+    },
+    ShowEvent {
+        event_id: i64,
+        before: bool,
+        after: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +60,12 @@ pub enum Response {
     },
     Events {
         events: Vec<EventRow>,
+    },
+    Text {
+        content: String,
+    },
+    Bytes {
+        bytes: Vec<u8>,
     },
     Error {
         message: String,
@@ -196,6 +213,19 @@ fn handle_request(
                 limit,
             )?,
         }),
+        Request::SessionEvents { session_id } => Ok(Response::Events {
+            events: store.events_for_session(&session_id)?,
+        }),
+        Request::DiffEvent { event_id } => Ok(Response::Text {
+            content: crate::restore::diff_event_text(&store, event_id)?,
+        }),
+        Request::ShowEvent {
+            event_id,
+            before,
+            after,
+        } => Ok(Response::Bytes {
+            bytes: crate::restore::show_event_bytes(&store, event_id, before, after)?,
+        }),
     }
 }
 
@@ -276,14 +306,15 @@ mod tests {
         let dir = unique_tmp_dir("socket");
         let paths = ProjectPaths::for_root(dir.clone());
         let store = Store::init(paths.clone()).expect("init store");
+        let hash = store.write_blob(b"hello world\n").expect("write blob");
         store
             .record_event(&crate::store::NewEvent {
                 ts_ns: 1,
                 path: "f.rs".into(),
                 before_hash: None,
-                after_hash: Some("hash".into()),
+                after_hash: Some(hash),
                 size_before: None,
-                size_after: Some(1),
+                size_after: Some(12),
                 attribution: "initial-scan".into(),
                 confidence: "high".into(),
                 session_id: None,
@@ -349,6 +380,25 @@ mod tests {
         {
             Response::Events { events } => assert_eq!(events.len(), 1),
             other => panic!("unexpected events response: {other:?}"),
+        }
+
+        match send(&paths, &Request::DiffEvent { event_id: 1 }).expect("diff event") {
+            Response::Text { content } => assert!(content.contains("--- a/f.rs")),
+            other => panic!("unexpected diff response: {other:?}"),
+        }
+
+        match send(
+            &paths,
+            &Request::ShowEvent {
+                event_id: 1,
+                before: false,
+                after: true,
+            },
+        )
+        .expect("show event")
+        {
+            Response::Bytes { bytes } => assert!(!bytes.is_empty()),
+            other => panic!("unexpected show response: {other:?}"),
         }
 
         match send(&paths, &Request::Shutdown).expect("shutdown request") {

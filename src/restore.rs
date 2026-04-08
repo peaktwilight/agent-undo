@@ -261,6 +261,23 @@ fn is_restore_bookkeeping(attribution: &str) -> bool {
 
 /// Print a file's content from the store by event id + side.
 pub fn show_event(store: &Store, event_id: i64, show_before: bool, show_after: bool) -> Result<()> {
+    let bytes = show_event_bytes(store, event_id, show_before, show_after)?;
+    // Write raw bytes to stdout; fall back to lossy if UTF-8 fails.
+    use std::io::Write;
+    let stdout = std::io::stdout();
+    let mut lock = stdout.lock();
+    if lock.write_all(&bytes).is_err() {
+        println!("{}", String::from_utf8_lossy(&bytes));
+    }
+    Ok(())
+}
+
+pub fn show_event_bytes(
+    store: &Store,
+    event_id: i64,
+    show_before: bool,
+    show_after: bool,
+) -> Result<Vec<u8>> {
     let ev = store
         .get_event(event_id)?
         .ok_or_else(|| anyhow::anyhow!("no event #{event_id}"))?;
@@ -274,16 +291,7 @@ pub fn show_event(store: &Store, event_id: i64, show_before: bool, show_after: b
     };
 
     match hash_opt {
-        Some(h) => {
-            let bytes = store.read_blob(h)?;
-            // Write raw bytes to stdout; fall back to lossy if UTF-8 fails.
-            use std::io::Write;
-            let stdout = std::io::stdout();
-            let mut lock = stdout.lock();
-            if lock.write_all(&bytes).is_err() {
-                println!("{}", String::from_utf8_lossy(&bytes));
-            }
-        }
+        Some(h) => store.read_blob(h),
         None => {
             bail!(
                 "event #{event_id} has no {label} content ({} at this event)",
@@ -295,11 +303,16 @@ pub fn show_event(store: &Store, event_id: i64, show_before: bool, show_after: b
             );
         }
     }
-    Ok(())
 }
 
 /// Print a unified diff for a single event.
 pub fn diff_event(store: &Store, event_id: i64) -> Result<()> {
+    let diff = diff_event_text(store, event_id)?;
+    print!("{diff}");
+    Ok(())
+}
+
+pub fn diff_event_text(store: &Store, event_id: i64) -> Result<String> {
     use similar::{ChangeTag, TextDiff};
 
     let ev = store
@@ -310,18 +323,19 @@ pub fn diff_event(store: &Store, event_id: i64) -> Result<()> {
     let after = read_blob_as_text(store, ev.after_hash.as_deref())?;
 
     let diff = TextDiff::from_lines(&before, &after);
-    println!("--- a/{} (event #{}, before)", ev.path, ev.id);
-    println!("+++ b/{} (event #{}, after)", ev.path, ev.id);
+    let mut out = String::new();
+    out.push_str(&format!("--- a/{} (event #{}, before)\n", ev.path, ev.id));
+    out.push_str(&format!("+++ b/{} (event #{}, after)\n", ev.path, ev.id));
     for change in diff.iter_all_changes() {
         let sign = match change.tag() {
             ChangeTag::Delete => "-",
             ChangeTag::Insert => "+",
             ChangeTag::Equal => " ",
         };
-        // `change` prints with its trailing newline already attached.
-        print!("{sign}{change}");
+        out.push_str(sign);
+        out.push_str(&change.to_string());
     }
-    Ok(())
+    Ok(out)
 }
 
 fn read_blob_as_text(store: &Store, hash: Option<&str>) -> Result<String> {

@@ -950,17 +950,66 @@ fn cmd_sessions() -> Result<()> {
 
 fn cmd_show(event_id: u64, before: bool, after: bool) -> Result<()> {
     let paths = ProjectPaths::discover()?;
+    if let Ok(response) = ipc::send(
+        &paths,
+        &ipc::Request::ShowEvent {
+            event_id: event_id as i64,
+            before,
+            after,
+        },
+    ) {
+        match response {
+            ipc::Response::Bytes { bytes } => {
+                use std::io::Write;
+                let stdout = std::io::stdout();
+                let mut lock = stdout.lock();
+                if lock.write_all(&bytes).is_err() {
+                    println!("{}", String::from_utf8_lossy(&bytes));
+                }
+                return Ok(());
+            }
+            ipc::Response::Error { message } => anyhow::bail!(message),
+            _ => anyhow::bail!("unexpected daemon response"),
+        }
+    }
     let store = Store::open(paths)?;
     restore::show_event(&store, event_id as i64, before, after)
 }
 
 fn cmd_diff(event_id: Option<u64>, session: Option<String>) -> Result<()> {
     let paths = ProjectPaths::discover()?;
-    let store = Store::open(paths)?;
+    let store = Store::open(paths.clone())?;
     match (event_id, session) {
-        (Some(id), _) => restore::diff_event(&store, id as i64),
+        (Some(id), _) => {
+            if let Ok(response) = ipc::send(
+                &paths,
+                &ipc::Request::DiffEvent {
+                    event_id: id as i64,
+                },
+            ) {
+                match response {
+                    ipc::Response::Text { content } => {
+                        print!("{content}");
+                        return Ok(());
+                    }
+                    ipc::Response::Error { message } => anyhow::bail!(message),
+                    _ => anyhow::bail!("unexpected daemon response"),
+                }
+            }
+            restore::diff_event(&store, id as i64)
+        }
         (None, Some(session_id)) => {
-            let events = store.events_for_session(&session_id)?;
+            let events = match ipc::send(
+                &paths,
+                &ipc::Request::SessionEvents {
+                    session_id: session_id.clone(),
+                },
+            ) {
+                Ok(ipc::Response::Events { events }) => events,
+                Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+                Ok(_) => anyhow::bail!("unexpected daemon response"),
+                Err(_) => store.events_for_session(&session_id)?,
+            };
             if events.is_empty() {
                 println!("no events found for session {session_id}");
                 return Ok(());
@@ -968,6 +1017,18 @@ fn cmd_diff(event_id: Option<u64>, session: Option<String>) -> Result<()> {
             println!("# session {} — {} event(s)", session_id, events.len());
             for ev in events {
                 println!();
+                if let Ok(response) =
+                    ipc::send(&paths, &ipc::Request::DiffEvent { event_id: ev.id })
+                {
+                    match response {
+                        ipc::Response::Text { content } => {
+                            print!("{content}");
+                            continue;
+                        }
+                        ipc::Response::Error { message } => anyhow::bail!(message),
+                        _ => anyhow::bail!("unexpected daemon response"),
+                    }
+                }
                 restore::diff_event(&store, ev.id)?;
             }
             Ok(())
