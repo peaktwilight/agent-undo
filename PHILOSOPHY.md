@@ -1,8 +1,35 @@
 # Philosophy — the primitive and the mindset shift
 
+> **git for humans. `au` for agents.**
+>
+> git versions human *intent*. agent-undo records agent *action*. They live alongside each other.
+
 `agent-undo` is not "yet another dev tool." It's a **primitive for a mindset shift in software engineering**: the recognition that AI coding agents are a new kind of contributor to your codebase, and they deserve the same engineering ceremony we give to every other contributor — commits, attribution, review, rollback.
 
 This doc captures the worldview that makes the project coherent. The README sells the tool; this sells the category.
+
+## The category claim
+
+For 50 years, source control has had one shape: **discrete commits**. A commit is a deliberate act. The user types `git add`, then `git commit`, and the system records what the user *meant to save*. Everything between commits is invisible. Everything not staged is lost.
+
+That model presupposes a human, working at human speed, who knows what they want to keep. The AI era violates all three assumptions:
+
+1. **Not a human.** Agents write to disk; humans approve diffs. The actor is no longer the committer.
+2. **Not human speed.** A 5-minute Claude session can produce 200 file writes. A user could not commit fast enough to capture them all even if they tried.
+3. **Not knowing what to keep.** Agents change things you didn't ask for. By the time you notice, the deliberate-act commit window has long since passed.
+
+The industry's response so far is to pretend nothing has changed: aggressive `git commit -am "wip"` discipline, hope, and prayer. When it breaks, scrape `~/.claude` session logs like an archaeologist. This is inadequate.
+
+**agent-undo proposes a parallel category.** Not a replacement for git, not a competitor, not a wrapper. A *complement*:
+
+- **git versions human intent.** Discrete commits, deliberate, human-paced. Stays exactly what it has always been.
+- **`au` records agent action.** Continuous capture, automatic, agent-paced. Every byte every agent writes, attributed, queryable, reversible.
+
+You use both. You commit when you mean to. `au` runs in the background and catches everything between your commits — and everything during the agent sessions you didn't realize were happening.
+
+`au blame src/auth.rs` reads the same way `git blame src/auth.rs` does. The author column is just different: where git tells you which human wrote each line, `au` tells you which agent (or which human) wrote each line. Both views matter. Neither is sufficient alone.
+
+This is the philosophy shift. Source control is now a *two-system* problem.
 
 ## The mindset shift
 

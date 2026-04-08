@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import DockNav from "../components/DockNav.tsx";
 
-const installCmd = "curl -fsSL https://agent-undo.dev/install.sh | sh";
+const installCmd = "curl -fsSL https://agent-undo.com/install.sh | sh";
 const githubUrl = "https://github.com/peaktwilight/agent-undo";
 ---
 
@@ -22,7 +22,7 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
           >
             <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400"
             ></span>
-            The missing safety net for AI coding agents
+            Source control for the code your agent wrote
           </span>
         </div>
 
@@ -32,32 +32,33 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
             class="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl"
             style="font-family: 'Outfit', sans-serif"
           >
-            Ctrl-Z for<br />
+            git for humans.<br />
             <span
               class="bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-500 bg-clip-text text-transparent"
-              >AI coding agents.</span
+              ><code class="font-mono">au</code> for agents.</span
             >
           </h1>
           <p class="mx-auto mt-6 max-w-2xl text-base text-[#a3a3a3] sm:text-lg">
-            A 5MB binary that snapshots every file your AI touches and lets you
-            roll back any edit, any session, any time. Editor-agnostic.
-            Local-first. Zero config.
+            <strong class="text-white">agent-undo</strong> records every byte your AI coding agent writes,
+            attributes it to the agent that made the change, and gives you one
+            command to roll any session back. git versions your intent.
+            <code class="font-mono text-cyan-300">au</code> records the agent's.
+            They live alongside each other.
           </p>
         </div>
 
-        <!-- Giant stat -->
+        <!-- Giant command -->
         <div class="animate-fade-up mt-12 mb-10" style="animation-delay: 0.25s">
           <div
-            class="text-7xl font-bold leading-[0.9] tracking-tighter text-white sm:text-8xl md:text-9xl"
+            class="text-6xl font-bold leading-[0.9] tracking-tighter text-white sm:text-7xl md:text-8xl"
             style="font-family: 'JetBrains Mono', monospace"
           >
-            1<span class="text-cyan-400">cmd</span>
+            au <span class="text-cyan-400">oops</span>
           </div>
           <p
             class="mt-3 text-[11px] uppercase tracking-[0.2em] text-[#737373]"
           >
-            <code class="font-mono">agent-undo oops</code> &middot; one word, one
-            keystroke, your code is back.
+            two letters &middot; one word &middot; your code is back
           </p>
         </div>
 
@@ -156,13 +157,13 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
                 <div class="h-3 w-3 rounded-full bg-white/10"></div>
               </div>
               <span class="ml-2 font-mono text-xs text-[#737373]"
-                >~/my-project &mdash; agent-undo oops</span
+                >~/my-project &mdash; au oops</span
               >
             </div>
             <div
               class="space-y-1 bg-[#0a0a0a] p-5 text-left font-mono text-[13px] leading-relaxed sm:text-sm"
             >
-              <div class="text-[#737373]">$ agent-undo oops</div>
+              <div class="text-[#737373]">$ au oops</div>
               <div>&nbsp;</div>
               <div class="text-amber-400">
                 &#9888;&nbsp;&nbsp;Last agent action: <span class="text-white"
@@ -202,9 +203,74 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
             </div>
           </div>
           <p class="mt-3 text-center text-[11px] text-[#737373]">
-            One word, one keystroke, your code is back.
+            Two letters &middot; one word &middot; your code is back.
           </p>
         </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== CATEGORY -->
+    <section
+      id="category"
+      class="border-t border-white/5 py-16 sm:py-24 md:py-32"
+    >
+      <div class="mx-auto max-w-4xl px-6">
+        <div class="mb-12 text-center">
+          <p class="mb-3 text-[11px] uppercase tracking-[0.2em] text-cyan-400/80">
+            The shift
+          </p>
+          <h2
+            class="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl"
+            style="font-family: 'Outfit', sans-serif"
+          >
+            Source control assumes a human writer.<br />
+            <span class="text-cyan-300">AI broke that assumption.</span>
+          </h2>
+        </div>
+
+        <div class="grid gap-6 md:grid-cols-2">
+          <!-- git side -->
+          <div class="rounded-xl border border-[#404040] bg-[#171717] p-6">
+            <p class="mb-3 text-[11px] uppercase tracking-[0.2em] text-[#737373]">
+              git
+            </p>
+            <p class="mb-4 text-base font-medium text-white">
+              Versions human <em class="not-italic text-cyan-300">intent</em>.
+            </p>
+            <ul class="space-y-2 text-sm text-[#a3a3a3]">
+              <li>&middot; You commit when you mean to.</li>
+              <li>&middot; Every change is a deliberate act.</li>
+              <li>&middot; History reflects what you wanted to keep.</li>
+              <li>&middot; <code class="text-cyan-300">git blame</code> tells you which human wrote each line.</li>
+            </ul>
+          </div>
+
+          <!-- au side -->
+          <div class="rounded-xl border border-cyan-400/30 bg-cyan-400/[0.04] p-6">
+            <p class="mb-3 text-[11px] uppercase tracking-[0.2em] text-cyan-300">
+              <code>au</code>
+            </p>
+            <p class="mb-4 text-base font-medium text-white">
+              Records agent <em class="not-italic text-cyan-300">action</em>.
+            </p>
+            <ul class="space-y-2 text-sm text-[#a3a3a3]">
+              <li>&middot; Every byte is captured on write.</li>
+              <li>&middot; No deliberate act required.</li>
+              <li>&middot; History reflects what actually happened.</li>
+              <li>&middot; <code class="text-cyan-300">au blame</code> tells you which agent wrote each line.</li>
+            </ul>
+          </div>
+        </div>
+
+        <p class="mx-auto mt-10 max-w-2xl text-center text-sm text-[#a3a3a3]">
+          A 5-minute Claude session can produce 200 file writes. git sees zero of
+          them until you type <code class="text-cyan-300">git add</code>.
+          <code class="text-cyan-300">au</code> sees all of them, the moment they hit disk,
+          tagged with the agent that made them.
+        </p>
+        <p class="mt-2 text-center text-sm font-medium text-white">
+          They're not competitors. They're complements.
+        </p>
       </div>
     </section>
 
@@ -323,7 +389,7 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
             </div>
             <h3 class="mb-2 text-base font-semibold">One-command rollback</h3>
             <p class="text-sm leading-relaxed text-[#a3a3a3]">
-              <code class="text-cyan-300">agent-undo oops</code> undoes the last
+              <code class="text-cyan-300">au oops</code> undoes the last
               agent session as one atomic operation. Safe. Instant. Reversible.
               The undo of the undo is one command away.
             </p>
@@ -406,19 +472,19 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
           <div
             class="rounded-lg border border-[#404040] bg-[#171717] p-4 text-xs text-[#a3a3a3]"
           >
-            <div class="mb-1 font-mono text-cyan-400">$ agent-undo init</div>
+            <div class="mb-1 font-mono text-cyan-400">$ au init</div>
             sets up <code>.agent-undo/</code>, starts the watcher daemon
           </div>
           <div
             class="rounded-lg border border-[#404040] bg-[#171717] p-4 text-xs text-[#a3a3a3]"
           >
-            <div class="mb-1 font-mono text-cyan-400">$ agent-undo log</div>
+            <div class="mb-1 font-mono text-cyan-400">$ au log</div>
             see the timeline of every AI edit, filterable by agent
           </div>
           <div
             class="rounded-lg border border-[#404040] bg-[#171717] p-4 text-xs text-[#a3a3a3]"
           >
-            <div class="mb-1 font-mono text-cyan-400">$ agent-undo oops</div>
+            <div class="mb-1 font-mono text-cyan-400">$ au oops</div>
             the panic button &mdash; undo the last agent session
           </div>
         </div>
@@ -558,7 +624,7 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
               {
                 n: "04",
                 t: "Recover",
-                d: "Run agent-undo oops. The whole session reverts atomically. A new snapshot is made first — the undo is itself undoable.",
+                d: "Run au oops. The whole session reverts atomically. A new snapshot is made first — the undo is itself undoable.",
                 code: "oops → atomic restore",
               },
             ].map((step) => (
