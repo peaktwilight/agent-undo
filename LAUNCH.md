@@ -8,7 +8,7 @@ Every viral dev-tool in the last two years hits these:
 
 | Property | agent-undo plan |
 |---|---|
-| Single-line install | `curl -fsSL https://agent-undo.dev/install.sh \| sh` |
+| Single-line install | `curl -fsSL https://agent-undo.com/install.sh \| sh` |
 | Single static binary | Rust, ~5–8MB, no runtime |
 | Time-to-wow ≤ 60s | `init` → trigger an edit → `oops` → restored. ~30s. |
 | Replaces a broken incumbent | Cursor checkpoints (publicly broken), Claude Code's nothing |
@@ -54,7 +54,7 @@ This GIF *is* the launch. Spend a full day making it perfect. Every viral tool i
 Don't write Rust until the visceral reaction is confirmed.
 
 **Day 0 — validation**
-- Buy `agent-undo.dev`
+- Buy `agent-undo.com`
 - Build a one-page landing site (Astro or just plain HTML)
   - Headline: "Ctrl-Z for AI coding agents"
   - Subhead: the pitch
@@ -94,7 +94,7 @@ See `ARCHITECTURE.md` for the engineering plan. Summary:
 - Homebrew tap live (`brew install peak/tap/agent-undo`)
 - Crates.io package live (`cargo install agent-undo`)
 - GitHub release v0.1.0 with binary attachments for macOS x64/arm64 + Linux x64/arm64
-- mdbook docs site live at agent-undo.dev/docs
+- mdbook docs site live at agent-undo.com/docs
 - 3 friendly devs briefed: be ready to engage substantively in first hour
 
 **Hour 0** (Tuesday 8am ET):

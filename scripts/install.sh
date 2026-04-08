@@ -2,7 +2,7 @@
 # agent-undo installer.
 #
 # Usage:
-#   curl -fsSL https://agent-undo.dev/install.sh | sh
+#   curl -fsSL https://agent-undo.com/install.sh | sh
 #
 # Detects OS + arch, downloads the matching release binary from GitHub, and
 # drops it into ~/.local/bin (or $AGENT_UNDO_INSTALL_DIR if set). Creates

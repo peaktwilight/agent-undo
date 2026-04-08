@@ -70,7 +70,7 @@ The editors are trying to solve this and failing. That's the gap.
 
 **Reasoning:**
 
-1. **Free everywhere** — GitHub, crates.io, npm, agent-undo.dev all available
+1. **Free everywhere** — GitHub, crates.io, npm, agent-undo.com all available
 2. **Search-friendly** — "agent undo github" surfaces it instantly with no noise
 3. **Descriptive** — boring-and-descriptive is a feature for OSS dev tools (see ripgrep, fd, just, watchexec)
 4. **Pronounceable** — two syllables, no ambiguity

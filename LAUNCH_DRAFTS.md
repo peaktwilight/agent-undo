@@ -4,7 +4,7 @@ Everything in this file is **draft text** to be deployed on launch day. It follo
 
 1. Vocative letter as the launch tweet (no GIF in tweet #1)
 2. Deflated, technical README opener (already done in `README.md`)
-3. Demo gallery, not single hero GIF — `agent-undo.dev/demos`
+3. Demo gallery, not single hero GIF — `agent-undo.com/demos`
 4. Villain = the underlying primitive ("the agent's filesystem write"), not Cursor
 5. Cursor receipts cashed in tweet #3, never in the README itself
 6. Community demo flywheel via tweet #5 ("PR a rescue demo")
@@ -19,7 +19,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 >
 > I have built **agent-undo**, a single 3.9 MB Rust binary. The command is `au`. After your AI coding agent destroys your code, you type `au oops` and the last session is gone. Editor-agnostic. Local-first. No cloud. The agent now has a safety net that survives even when .git is gone.
 >
-> agent-undo.dev
+> agent-undo.com
 
 (One tweet. No GIF. Pure text + the link card preview of the README. Pretext got 19M impressions in 48 hours doing exactly this. The visuals come in tweet #2.)
 
@@ -83,7 +83,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 > Install:
 >
 > ```
-> curl -fsSL https://agent-undo.dev/install.sh | sh
+> curl -fsSL https://agent-undo.com/install.sh | sh
 > cd your-project
 > au init --install-hooks
 > ```
@@ -130,7 +130,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 >
 > A single 3.9 MB Rust binary that snapshots every file your AI agent writes, attributes every edit to the specific agent that made it, and gives you one-command rollback when something goes wrong.
 >
-> agent-undo.dev | github.com/peaktwilight/agent-undo
+> agent-undo.com | github.com/peaktwilight/agent-undo
 
 ---
 
@@ -177,10 +177,10 @@ Local-first, zero telemetry, no signup, one binary. ~2,800 lines of Rust,
 14 integration tests, clippy -D warnings clean, CI on Linux + macOS.
 
 Install:
-    curl -fsSL https://agent-undo.dev/install.sh | sh
+    curl -fsSL https://agent-undo.com/install.sh | sh
 
 Source: github.com/peaktwilight/agent-undo
-Docs:   agent-undo.dev
+Docs:   agent-undo.com
 
 Happy to answer questions about the architecture, the attribution layer
 design, or why I picked the specific dependency stack.
@@ -211,7 +211,7 @@ Editor-agnostic. Local-first. Zero telemetry. ~$0 cost forever.
 
 Demo: [link to GIF]
 Source: github.com/peaktwilight/agent-undo
-Install: curl -fsSL https://agent-undo.dev/install.sh | sh
+Install: curl -fsSL https://agent-undo.com/install.sh | sh
 
 Looking for feedback from anyone who's been burned by editor data-loss bugs.
 Specifically curious whether the Cursor forum thread workaround applies to
@@ -258,7 +258,7 @@ Publish 10-14 days after launch. Goal: rust-lang weekly newsletter pickup.
 
 ---
 
-## Email capture autoresponder (for the early-access form on agent-undo.dev)
+## Email capture autoresponder (for the early-access form on agent-undo.com)
 
 Subject: Welcome to agent-undo
 
@@ -287,7 +287,7 @@ In the meantime, two things:
 
 48 hours before:
 
-- [ ] Domain DNS propagated (`agent-undo.dev`)
+- [ ] Domain DNS propagated (`agent-undo.com`)
 - [ ] Landing site deployed and Lighthouse 95+
 - [ ] Demo GIF #1 (5-file Claude wreck → oops) recorded, <2 MB
 - [ ] Demo GIF #2 (`oops apocalypse` 30-second version) recorded
@@ -296,7 +296,7 @@ In the meantime, two things:
 - [ ] Homebrew tap published with `agent-undo` formula
 - [ ] crates.io package live (`cargo publish` succeeded)
 - [ ] First GitHub release tagged (`v0.1.0`) with binaries attached
-- [ ] `install.sh` endpoint live at agent-undo.dev/install.sh and tested
+- [ ] `install.sh` endpoint live at agent-undo.com/install.sh and tested
 - [ ] 3 friendly devs briefed and lined up to engage in the first hour
 - [ ] Twitter profile updated with pinned tweet placeholder
 - [ ] Repo flipped from private to public

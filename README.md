@@ -5,7 +5,7 @@
 *agent-undo side-steps editor checkpoints, IDE history, and after-the-fact `git reflog` archaeology — all of which silently fail when the agent has been given write access to the filesystem and acted faster than your save loop.*
 
 ```sh
-curl -fsSL https://agent-undo.dev/install.sh | sh
+curl -fsSL https://agent-undo.com/install.sh | sh
 ```
 
 ```sh
@@ -45,7 +45,7 @@ and the last burst of agent edits is rolled back, atomically, across every file 
 ## Install
 
 ```sh
-curl -fsSL https://agent-undo.dev/install.sh | sh
+curl -fsSL https://agent-undo.com/install.sh | sh
 ```
 
 Or from source:

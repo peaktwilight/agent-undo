@@ -123,7 +123,7 @@ Pretext won by writing a *letter* to a tribe, claiming *civilizational stakes*, 
 
 > *My dear AI-coding survivors, my Cursor refugees, my Claude-Code night-shifters: I have spent four weeks watching agents nuke uncommitted code so I could give you the missing layer none of the editors shipped — a 5MB Rust binary that snapshots every file your agent touches and rolls back any session with one command. Editor-agnostic. Local-first. Zero config. The verb is `oops`.*
 >
-> agent-undo.dev · github.com/peak/agent-undo
+> agent-undo.com · github.com/peak/agent-undo
 
 Note the deliberate copies from pretext:
 
@@ -160,7 +160,7 @@ This is the biggest single departure from `LAUNCH.md`'s current plan, and it's t
 
 **The pretext playbook is: ship 4 demos in a gallery, make the API so legible the community builds 12 more in 24 hours.**
 
-For agent-undo, the equivalent gallery — call it `agent-undo.dev/demos` — should be **four short screencaps, each ≤8 seconds**, each demonstrating a different rescue:
+For agent-undo, the equivalent gallery — call it `agent-undo.com/demos` — should be **four short screencaps, each ≤8 seconds**, each demonstrating a different rescue:
 
 | # | Demo name | What it shows | Why it's shareable |
 |---|---|---|---|
@@ -244,7 +244,7 @@ Pretext didn't ship a hero GIF and that worked for *Cheng Lou*. agent-undo is in
 | 7.0–10.0s | The `oops` prompt renders, exactly as in `README.md`: *"Last agent action: claude-code, session 14:32-14:34, edited 5 files... Roll back this entire session? [Y/n]"* | Hold long enough to read. This is the screenshot people will tweet. | *"One command. One keystroke."* |
 | 10.0–11.0s | User hits `y`. | Crisp keystroke (silent fallback). | — |
 | 11.0–13.5s | All five files snap back. Test strip flashes green. `auth.rs` content restored verbatim. | The exhale. | *"Restored. All five files."* |
-| 13.5–15.0s | End card: black background, two lines: **agent-undo** / *Ctrl-Z for AI coding agents.* `agent-undo.dev` underneath. | Fade. | — |
+| 13.5–15.0s | End card: black background, two lines: **agent-undo** / *Ctrl-Z for AI coding agents.* `agent-undo.com` underneath. | Fade. | — |
 
 **Production notes:**
 - Record at 2x size (retina), downscale for the GIF — readable text in the prompt is non-negotiable.
@@ -265,7 +265,7 @@ Pretext's actual thread was short (3 tweets + a follow-up the next day). agent-u
 >
 > Editor-agnostic. Local-first. Zero config. The verb is `oops`.
 >
-> agent-undo.dev
+> agent-undo.com
 
 **Tweet 2 — The hero GIF.** No text, or one line: *"This is the whole pitch."*
 
@@ -281,7 +281,7 @@ Pretext's actual thread was short (3 tweets + a follow-up the next day). agent-u
 
 **Tweet 6 — The install line.**
 > ```
-> curl -fsSL https://agent-undo.dev/install.sh | sh
+> curl -fsSL https://agent-undo.com/install.sh | sh
 > agent-undo init
 > ```
 > 5MB binary. No daemon you didn't start. No telemetry. No account. No cloud.
@@ -302,7 +302,7 @@ Pretext's actual thread was short (3 tweets + a follow-up the next day). agent-u
 **Tweet 10 — The closer.**
 > If you've ever lost code to an AI agent, this is the safety net I wish I'd had. RT if you've been there. Build with peace of mind.
 >
-> github.com/peak/agent-undo · agent-undo.dev
+> github.com/peak/agent-undo · agent-undo.com
 
 **Day-2 follow-up tweet (the Cheng Lou move):**
 > Woke up to the timeline acting like agent-undo cured cancer. Thanks for the wildly hyperbolic affection folks. Here's the demo I should have shipped yesterday: `oops apocalypse` — Claude with `--dangerously-skip-permissions` running 60s in a real repo, then one keystroke rolls all of it back. [video]
@@ -329,7 +329,7 @@ than your save loop.
 
 ## Install
 
-curl -fsSL https://agent-undo.dev/install.sh | sh
+curl -fsSL https://agent-undo.com/install.sh | sh
 agent-undo init
 
 ## The killer command
@@ -348,7 +348,7 @@ agent-undo init
 
 ## Demos
 
-→ agent-undo.dev/demos — gallery of rescue scenarios.
+→ agent-undo.com/demos — gallery of rescue scenarios.
    PR your own to /demos and we'll ship it.
 
 ## How attribution works
