@@ -6,80 +6,82 @@ author: "agent-undo"
 tags: ["ai", "developer-tools", "source-control", "philosophy"]
 ---
 
-On May 27, 2025, a developer posting under the handle Jonneal3 opened a thread on the Cursor forum with a title that was half panic and half confession: *Help needed asap! - Cursor deleted my whole project.* The body was shorter than the title. "cursor agent went off the hinges and started deleting my entire app," he wrote. "90% of my app is gone… I hadnt gotten a chance to push to github yet." Seventeen replies followed. None of them recovered the code.
+On May 27, 2025, a developer posting under the handle Jonneal3 opened a thread on the Cursor forum with a title that was half panic and half confession: *Help needed asap! - Cursor deleted my whole project.* The body was shorter than the title. "cursor agent went off the hinges and started deleting my entire app," he wrote. "90% of my app is gone… I hadnt gotten a chance to push to github yet." Seventeen replies followed. None of them recovered the code. ([source](https://forum.cursor.com/t/help-needed-asap-cursor-deleted-my-whole-proejct/97589))
 
-Seven months later, on January 16, 2026, a Cursor staff member posting as deanrie replied to a separate thread about agent-initiated file deletion with the kind of sentence that ends up pinned to an office wall somewhere. The bug, he explained, was "a known issue, a bug caused by a conflict between the Agent Review Tab and file editing." The official workaround: "Close the Agent Review Tab before the agent makes edits."
+Seven months later, on January 16, 2026, a Cursor staff member posting as deanrie replied to a separate thread about agent-initiated file deletion with the kind of sentence that ends up pinned to an office wall somewhere. The bug, he explained, was "a known issue, a bug caused by a conflict between the Agent Review Tab and file editing." The official workaround: "Close the Agent Review Tab before the agent makes edits." ([source](https://forum.cursor.com/t/agent-code-changes-are-automatically-deleted/149024)) That is a sitting employee of a multi-billion-dollar developer tools company telling paying users, on the record, to turn off a core feature of the product so the product will stop deleting their work.
 
-This is a system design failure, not a bug. The whole stack assumed something that stopped being true sometime in 2024.
+This is a system design failure. The whole stack assumes something that stopped being true sometime in 2024. (Whether we as programmers like it or not)
 
 ## The silent assumption
 
-Go pull the history of any repository you have been working on for more than a year. Look at the commit cadence. One commit every fifteen minutes on a good day, one every few hours more honestly, one per feature if you are disciplined. That cadence is not incidental. It is the heartbeat that every other tool in your stack was built around.
+Go pull the history of any repository you have been working on for more than a year. Look at the commit cadence. One commit every fifteen minutes on a good day, one every few hours more honestly, one per feature if you are disciplined. That cadence is the heartbeat that every other tool in your stack was built around.
 
-`git add` and `git commit` are a ceremony. The user decides what constitutes a meaningful unit of work, stages the files, writes a message explaining intent, and signs a contract with the future that says *this is what I meant to save*. Everything between commits is scratch. Everything not staged is assumed to be noise.
+`git add` and `git commit` are a ceremony. The user decides what constitutes a meaningful unit of work, stages the files, writes a message explaining intent, and signs a contract with the future that says *this is what I meant to save*. Everything between commits is scratch. Everything not staged is assumed to be noise. GitHub's pull request model extends the ceremony outward: a reviewer reads the diff, asks why a particular line changed, and expects a coherent answer from a coherent actor. `git blame` is a forensic tool whose only job is to walk backward from a regression to the human who wrote the line so you can ask them what they were thinking. Audit logs in regulated industries use commit history as legal evidence. CI runs on commits because commits are the atomic unit of intent.
 
-All of it encodes one silent assumption: the writer of the code is a human you can hold accountable. A human who will not produce four hundred lines of diff in the time it takes to reach for coffee. A human whose mistakes come in shapes you have seen before. A human whose pace gives the commit cadence time to breathe.
+All of it — every layer of this ceremony — encodes one assumption. The writer of the code is a human you can hold accountable. A human who will not produce four hundred lines of diff in the time it takes to reach for coffee. A human whose mistakes come in shapes you have seen before: a typo, a misread spec, a forgotten edge case. A human who, when asked "why did you change this line," has a reason, sometimes a bad one:) But still a human whose pace gives the commit cadence time to breathe.
 
-None of this was designed for a contributor that writes 400 lines in 8 seconds while you stare at the screen trying to read fast enough.
+None of this was designed for a contributor that writes 400 lines in 8 seconds while you stare at the screen trying to read fast enough. Git's staging model, GitHub's review surface, blame, audit, CI — the whole thing quietly assumes human typing speed, human cognitive load, and a human's self-preservation instinct. Strip those out and a lot of the ceremony starts to feel like furniture from a house nobody lives in anymore.
+
+## Five short stories
+
+The Cursor checkpoint bug. On February 20, 2026, a user named MidnightOak filed a thread titled *[v2.5.20] Revert to Checkpoint Broken*. "Reverting to checkpoint no longer reverts. Changes in code remain, even if it shows in chat that a revert was done." ([source](https://forum.cursor.com/t/v2-5-20-revert-to-checkpoint-broken/152345)) Three days later, deanrie acknowledged a related thread: "Both issues are related and already known. The root cause is a diffs display bug." ([source](https://forum.cursor.com/t/keep-undo-buttons-missing-and-discard-to-checkpoint-not-reverting-changes-auto-applies-edits/152621)) The safety feature and the undo button were both broken in the same release. The official fix was the sentence about the Agent Review Tab.
+
+Jonneal3 and the lost weekend. The quote at the top of this essay is one data point in a shape that repeats every week on the same forum. The agent runs unattended for a few minutes, something misfires, the project tree gets rewritten, and the developer discovers the damage after the fact — often because they have not committed yet, because they were in the middle of a session, because the whole point of a coding agent is that you hand it a task and come back to a finished result. davidktx replied to Jonneal3 on the same thread: "It just did the same thing to me. Timeline is probably empty because the .git and probably its supporting folders were deleted... You unfortunately are not alone." ([source](https://forum.cursor.com/t/help-needed-asap-cursor-deleted-my-whole-proejct/97589))
+
+nvs and the five-week week. On a separate Cursor thread titled *Cursor destroyed my code/full app, now 7th time*, a user posting as nvs laid out the math: "Every 3rd day, I was finding myself having to rewrite the code again." "What I could do in a week manually, took me 5 weeks, due to crashes." "I have spent more time, rebuilding codebase than actually building logic." ([source](https://forum.cursor.com/t/cursor-destroyed-my-code-full-app-now-7th-time/52371)) One user. Seven separate incidents. A 5x slowdown on sustained work, caused entirely by the recovery tax. That number should be printed on every pitch deck that mentions AI productivity gains.
+
+muzani on the mock rewrite. In a Hacker News thread about Cursor reliability from March 2025, a commenter named muzani described a particular failure mode that is almost more troubling than the deletions. "Claude 3.7 feels overtuned... it will rewrite the mock to pass... Sometimes it's even aware of this, saying things like 'I should be careful to not delete this'." ([source](https://news.ycombinator.com/item?id=43298275)) This is what it looks like when an agent's loss function is "make the test green" and the cost of rewriting the test is lower than the cost of fixing the bug. Nobody is being evil here — the agent is doing exactly what the agent was built to do, which is kind of why no amount of prompt engineering really fixes it. A human who rewrote their own mock to make their own code pass would probably get a talking-to. An agent that does it gets a thumbs-up in the chat log and a fresh task.
+
+Cline issue #5124. A different editor, community and tech stack. The issue title, filed in July 2025, is itself the quote: *"Cline autonomously delete files without keeping track of the deleted/changed files. Very Dangerous and Critical Issue!!!"* ([source](https://github.com/cline/cline/issues/5124)) In November of the same year, Cline issue #7600 reported that the `replace_in_file` tool "deletes next line of code after replacement." ([source](https://github.com/cline/cline/issues/7600)) These are the receipts that refute the easy rebuttal. This isn't a Cursor-specific problem or a Claude-specific problem — it's the same shape every time: a mismatch between the speed and autonomy of the writer and the ceremony of the stack the writer is operating inside. We kinda have to shift how we think about code being edited.
 
 ## The category claim
 
-The fix is not "better checkpoints" inside a single editor. The fix is a new primitive at the filesystem layer.
+Treat the stories above as a lower bound on the error rate of the new contributor and ask the obvious question. If a human coworker shipped at this failure rate, what would you actually do about it? You probably wouldn't revoke their commit access. You'd build the controls that let you see what they were doing, attribute each change back to them, and roll back any single change without blowing up the surrounding work. That's what engineering ceremony has always been for — the instrument panel that lets a team of messy humans work on a shared system without everyone burning down.
 
-- **git versions human intent.**
-- **`au` records agent action.**
+The argument of this essay is simple and, once stated, hard to unsee. Source control is now a two-system problem. `git` versions human intent. Something else, running alongside, needs to record agent action. The two systems should coexist the way `/var/log` coexists with your deployment scripts — one is a record of what was meant, the other is a record of what happened, and you need both because they disagree more often than you think.
 
-You need both.
+That "something else" is not a feature request for git. Git's commit model is load-bearing for human workflows and it would be malpractice to redesign it around a constraint it was never meant to carry. Our answer is a parallel primitive. Something that runs at the filesystem layer, below the editor, continuously, with no ceremony at all. Something that captures every write, attributes it to whichever agent caused it, makes it trivially reversible, and exposes the resulting timeline as data that other tools can compose on top of.
 
-Git remains the system for deliberate commits, review, merge, and deployment. `agent-undo` is the always-on local log of the code your agent actually wrote between those moments of intent.
+Four primitives define the shape of that layer. Observability: every edit an agent makes should be captured, always, with zero friction and zero config. Attribution: every captured change should be traceable to the agent, model, session, and prompt that caused it — so `au blame` can answer "who wrote this line" the way `git blame` can. Reversibility: any individual edit or any full session should be undoable as an atomic operation, and the undo itself gets recorded so you never lose data by recovering data. Review surface: agent sessions should be reviewable as units, the way pull requests are, so a human can read a session diff and decide whether to keep it. Skip any one of those and the other three start to feel like theater.
 
-That means four missing primitives become table stakes:
-
-1. **Observability** — every write must be captured automatically.
-2. **Attribution** — every change must be tied to an agent or session.
-3. **Reversibility** — any session must be undoable as a unit.
-4. **Review surface** — the session needs to be inspectable after the fact.
+The load-bearing claim here isn't "agents bad" — they're actually getting spectacularly good at the parts that work, lol. It's that agents are a new category of contributor, and new categories need their own instruments. The stack you have today measures the contributor you used to have.
 
 ## Why editor checkpoints fail
 
-Editor-bound checkpoints live at the wrong layer.
+The obvious objection, the one that comes up in every conversation about this topic, is that editors already have checkpoints. Cursor has one. Cline has one. Continue has an edit history. Claude Code has `/rewind`. Why is a separate layer necessary when each editor ships its own undo?
 
-They only see their own edits. They disappear with the editor process. They race with writes from outside the editor. They cannot answer cross-editor questions like "did Claude or Cursor delete this file?" because each tool only sees its own world.
+Because the checkpoint lives at the wrong layer. Every editor-bound checkpoint has the same three problems. It only sees edits made through its own tool, so if you use Claude Code in the morning and Cursor in the afternoon, the morning's edits are invisible to the afternoon's history and vice versa. It lives inside the editor process, so when the editor crashes, updates, corrupts its state files, or has its Agent Review Tab open at the wrong moment, the checkpoint goes with it. And it's usually in-memory or editor-scoped rather than content-addressable on disk, so concurrent writes from outside the editor — a format-on-save, a test runner, a build tool, another agent in another window — race the checkpoint and win.
 
-The only layer that can answer those questions is the filesystem watcher plus timeline that sits below the editor.
+These aren't bugs any single editor can fix from the inside. A cross-editor forensic tool can't live inside one editor. A post-crash recovery tool can't live inside the process that just crashed. A race-free write log can't live inside a system that isn't the one mediating the writes. The right layer is below the editor, at the filesystem, watching every write as it lands. That's the only layer where the four primitives above are achievable without lying to the user about what's being captured.
 
-## What `agent-undo` does
+## What we built
 
-`agent-undo` is a local-first Rust binary that snapshots file writes into a content-addressable store, records them in SQLite, and lets you restore a file or session later.
+`agent-undo` is the tool version of that argument. It is a ~5 MB Rust binary. It runs as a tiny daemon per project. It hashes every file write into a content-addressable store using BLAKE3 and zstd, records each one in a SQLite timeline at `.agent-undo/timeline.db`, and attributes each event to the agent that caused it through a small hook that Claude Code, Cursor, Cline, Aider, and Codex can each call. It is local-first, no cloud, no account, no telemetry, nothing to opt out of because there is nothing to opt into. It is Apache-2.0. It is not finished though, we need your help improving and thinking about things that we might've missed.
 
-The common case is one word:
+The common case is one command. When the agent goes off the hinges, you type `au oops` and the last burst of agent edits rolls back, atomically, across every file that was touched. The rollback is itself a recorded event, so undo-the-undo is always one command away. `au log` shows every file event, attributed. `au sessions` lists recent agent sessions as reviewable units. `au diff --session <id>` gives you the session diff. `au pin "before refactor"` lets you mark a known-good state before you let a long-running task loose. The install is one line of shell and the setup is `au init --install-hooks`, which patches `~/.claude/settings.json` to attribute Claude Code edits automatically and drops a `.agent-undo/` directory into the project root.
 
-```sh
-au oops
-```
+The feature that makes this a category and not just a feature is `au blame`. It reads the same way `git blame` reads — the author column is just different. Where git tells you which human wrote each line, `au blame` tells you which agent wrote it, with the session id and timestamp to back it up. No editor-bound tool can do that, because no editor-bound tool can see the writes of a different editor. Which is sort of the whole point: there's room under the editor for a primitive that none of the editors can build from where they're sitting.
 
-That command rolls back the last explicit agent session when there is one, and otherwise falls back to a recent-burst heuristic. The restore is itself recorded, so undoing the undo remains possible.
+## What this isn't
 
-You can also inspect the timeline:
+Worth being honest about scope here. `agent-undo` is not a git replacement. It doesn't version your intent, generate commit messages, branch, merge, or push, and it isn't trying to. Git is still the right tool for the human side of the two-system problem and nothing here displaces it. It's also not a backup system — the store is local, per-project, sized for the last hours-to-days of activity, not for offsite disaster recovery. And it's not an editor plugin, and probably never will be, because editor-bound is exactly the constraint the tool exists to escape.
 
-```sh
-au log
-au log --json
-au sessions
-au diff --session <id>
-au blame src/auth.rs
-```
-
-That last command is the moat feature. Where `git blame` tells you which human wrote a line, `au blame` tells you which agent or session wrote it.
-
-## What this is not
-
-This is not a git replacement. It does not replace commits, branches, pull requests, or review. It is the second system beside git, not a rewrite of git.
-
-It is also not a cloud product. There is no account, no sync requirement, no telemetry, and no dashboard dependency for the core workflow.
+What it *is* is a primitive that the next decade of agent-aware tooling can be built on top of. We expect other tools to layer review surfaces on the session data, build team mode, semantic anomaly detection, policy hooks, cloud export for audit, pre-restore test runs, Slack alerts on weird sessions. We have no plans to build any of that ourselves. The point of a primitive is that other people build the interesting things on top of it, the way the interesting things got built on top of git because git's data model was stable and open and composable. `agent-undo`'s schema is stable, its API is a unix-socket JSON interface, its storage is open, and its binary is embeddable. Everything above that line is somebody else's product, and we'd like it that way.
 
 ## The call
 
-If AI agents are going to write half the code in a repository, then the industry needs to hold them to half the standards it applies to humans: observability, attribution, reversibility, review.
+If AI agents are going to write half of the code that gets shipped in 2026 (like Dario says they will), and the evidence is that they already do (according to the internet?), the industry should probably hold them to at least half the standards it holds human contributors to. Observability, attribution, reversibility, review. This stuff should be table stakes. It should be a little embarrassing to ship a coding agent into production without any of it, the way it would be embarrassing to ship a CI system without logs. And ideally it's a democratized thing — no single company should own the observability layer for code on your own disk.
 
-The tools to do that should not be optional add-ons. They should be default infrastructure.
+You can install `agent-undo` in one line:
+
+```sh
+curl -fsSL https://agent-undo.com/install.sh | sh
+```
+
+The source is on GitHub under Apache-2.0. The homepage is [agent-undo.com](https://agent-undo.com). The longer internal manifesto lives in `PHILOSOPHY.md` in the repo if you want the version of this argument pitched at contributors rather than readers. Issues, PRs, and hook integrations for editors we haven't covered yet are all welcome. We're not trying to own the category — we just want the category to exist, so that nobody else has to open a forum thread titled *Help needed asap! - Cursor deleted my whole project* and watch seventeen strangers fail to rescue them.
+
+Jonneal3 hadn't gotten a chance to push to GitHub yet. He shouldn't have needed to.
+
+---
+
+**TL;DR.** Every piece of engineering ceremony — commits, review, blame, audit — quietly assumes a human writer, working at human speed, who can be held accountable for a line of code. AI coding agents break all three assumptions at once, and editor-bound checkpoint features meant to patch over the problem live at the wrong layer to ever really work. Source control is now a two-system problem: `git` for human intent, a parallel primitive for agent action. `agent-undo` is a ~5 MB, local-first, Apache-2.0 Rust binary that ships the first version of that primitive — observability, attribution, reversibility — and gives you `au blame` so you can finally ask which agent wrote which line. One command to install. Hold the new contributor to the same standards as the old one.
