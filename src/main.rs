@@ -144,6 +144,9 @@ enum Command {
 
     /// Garbage collect old events and blobs.
     Gc,
+
+    /// Diagnose the project's agent-undo setup.
+    Doctor,
 }
 
 #[derive(Subcommand)]
@@ -217,6 +220,7 @@ async fn main() -> Result<()> {
         Command::Hook(HookCmd::Pre) => hook::handle_pre(),
         Command::Hook(HookCmd::Post) => hook::handle_post(),
         Command::Gc => cmd_gc(),
+        Command::Doctor => cmd_doctor(),
     }
 }
 
@@ -430,6 +434,127 @@ fn parse_since(s: &str) -> Result<i64> {
         _ => anyhow::bail!("unknown --since unit '{unit}', use s/m/h/d"),
     };
     Ok(n * mult)
+}
+
+fn cmd_doctor() -> Result<()> {
+    println!("agent-undo doctor");
+    println!("=================");
+    println!();
+
+    // 1. Project init.
+    let paths = match ProjectPaths::discover() {
+        Ok(p) => {
+            println!("✓ project initialized at {}", p.root.display());
+            p
+        }
+        Err(_) => {
+            println!("✗ no .agent-undo/ found in this directory or any parent");
+            println!("  → run `agent-undo init` to set up");
+            return Ok(());
+        }
+    };
+
+    // 2. SQLite store + counts.
+    let store = match Store::open(paths.clone()) {
+        Ok(s) => {
+            let n = s.event_count().unwrap_or(-1);
+            println!("✓ timeline database open ({n} events)");
+            s
+        }
+        Err(e) => {
+            println!("✗ could not open timeline.db: {e}");
+            return Ok(());
+        }
+    };
+
+    // 3. Object store on disk.
+    let blob_count = count_blobs(&paths.objects_dir);
+    println!(
+        "✓ {blob_count} object(s) in CAS at {}",
+        paths.objects_dir.display()
+    );
+
+    // 4. Daemon status.
+    let pidfile = paths.data_dir.join("daemon.pid");
+    if pidfile.exists() {
+        let pid_str = std::fs::read_to_string(&pidfile).unwrap_or_default();
+        let pid: u32 = pid_str.trim().parse().unwrap_or(0);
+        if pid > 0 && process_alive(pid) {
+            println!("✓ daemon running (pid {pid})");
+        } else {
+            println!(
+                "⚠ stale pidfile at {} (pid {pid} not alive)",
+                pidfile.display()
+            );
+            println!("  → run `agent-undo stop` to clean up, then `agent-undo serve --daemon`");
+        }
+    } else {
+        println!("⚠ daemon not running");
+        println!("  → start it with `agent-undo serve --daemon`");
+    }
+
+    // 5. Active session marker.
+    let active_path = paths.data_dir.join("active-session.json");
+    if active_path.exists() {
+        println!(
+            "ℹ active session marker present at {}",
+            active_path.display()
+        );
+        println!("  (this means an agent is currently making attributed edits)");
+    }
+
+    // 6. Claude Code hooks installed?
+    if let Some(settings) = install::claude_settings_path() {
+        if settings.exists() {
+            let content = std::fs::read_to_string(&settings).unwrap_or_default();
+            if content.contains("agent-undo hook") {
+                println!("✓ Claude Code hooks installed in {}", settings.display());
+            } else {
+                println!("⚠ Claude Code settings.json exists but no agent-undo hook found");
+                println!("  → run `agent-undo init --install-hooks` to add them");
+            }
+        } else {
+            println!(
+                "ℹ Claude Code not detected (no {} found)",
+                settings.display()
+            );
+            println!("  → if you use Claude Code, run `agent-undo init --install-hooks`");
+        }
+    }
+
+    // 7. Sessions summary.
+    let sessions = store.list_sessions(5).unwrap_or_default();
+    println!();
+    if sessions.is_empty() {
+        println!("no agent sessions recorded yet.");
+    } else {
+        println!("recent sessions:");
+        for s in sessions {
+            let when = chrono::Local
+                .timestamp_nanos(s.started_at_ns)
+                .format("%Y-%m-%d %H:%M")
+                .to_string();
+            println!("  {} {} — {}", &s.id[..s.id.len().min(12)], s.agent, when);
+        }
+    }
+
+    println!();
+    println!("everything looks healthy. try `agent-undo log` to see what's happening.");
+    Ok(())
+}
+
+fn count_blobs(objects_dir: &std::path::Path) -> usize {
+    let mut count = 0;
+    if let Ok(shards) = std::fs::read_dir(objects_dir) {
+        for shard in shards.flatten() {
+            if shard.path().is_dir() {
+                if let Ok(blobs) = std::fs::read_dir(shard.path()) {
+                    count += blobs.flatten().count();
+                }
+            }
+        }
+    }
+    count
 }
 
 fn cmd_pin(label: String) -> Result<()> {

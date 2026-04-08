@@ -446,6 +446,40 @@ fn unpin_restores_project_to_pinned_state() {
 }
 
 #[test]
+fn doctor_reports_status_correctly() {
+    let dir = unique_tmp_dir("doctor");
+    fs::write(dir.join("a.txt"), "hi").unwrap();
+
+    // Doctor before init should give a clear "no .agent-undo/" message.
+    let (_, out_pre, _) = run(&dir, &["doctor"]);
+    assert!(
+        out_pre.contains("no .agent-undo"),
+        "expected error: {out_pre}"
+    );
+
+    run(&dir, &["init"]);
+
+    // Doctor after init should report all the basics.
+    let (code, out, _) = run(&dir, &["doctor"]);
+    assert_eq!(code, 0);
+    assert!(
+        out.contains("project initialized"),
+        "missing init line: {out}"
+    );
+    assert!(
+        out.contains("timeline database open"),
+        "missing db line: {out}"
+    );
+    assert!(out.contains("object(s) in CAS"), "missing CAS line: {out}");
+    assert!(
+        out.contains("daemon not running"),
+        "should flag missing daemon: {out}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn discover_errors_outside_initialized_project() {
     let dir = unique_tmp_dir("undisc");
     let (code, _, err) = run(&dir, &["log"]);
