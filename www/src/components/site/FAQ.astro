@@ -2,15 +2,22 @@
 /**
  * FAQ — native <details> accordion. Zero JS, zero dependencies.
  * Ten questions developers ask before they install agent-undo.
+ *
+ * Typography rule for the answers:
+ *   - Standalone `au`/`git`/`agent-undo` as project names use <span>
+ *     with a color only, no monospace. They're names, not code tokens.
+ *   - Real commands with arguments ('au init --install-hooks'),
+ *     literal file paths ('.agent-undo/', '.git'), and literal string
+ *     values ('unknown' as a column value) use <code class="font-mono">.
  */
 const faqs: { q: string; a: string }[] = [
   {
     q: "What's the difference between this and git?",
-    a: "<code class=\"font-mono text-white/85\">git</code> versions human <em class=\"not-italic text-white/85\">intent</em> — commits are deliberate acts you type on purpose. <code class=\"font-mono text-cyan-400\">au</code> records agent <em class=\"not-italic text-white/85\">action</em> — every byte, the moment it hits disk. They complement each other and you run both. <code class=\"font-mono text-white/85\">git</code> stays exactly what it is; <code class=\"font-mono text-cyan-400\">au</code> fills the gap between commits.",
+    a: "<span class=\"text-white/85\">git</span> versions human <em class=\"not-italic text-white/85\">intent</em> — commits are deliberate acts you type on purpose. <span class=\"text-cyan-400\">au</span> records agent <em class=\"not-italic text-white/85\">action</em> — every byte, the moment it hits disk. They complement each other and you run both. <span class=\"text-white/85\">git</span> stays exactly what it is; <span class=\"text-cyan-400\">au</span> fills the gap between commits.",
   },
   {
     q: "Does this replace my editor's undo button?",
-    a: "No. Editor undo is in-memory and editor-bound — close the tab and it's gone. <code class=\"font-mono text-cyan-400\">au</code> is on-disk, editor-agnostic, and survives crashes, restarts, and agent rampages. Your editor sees its own edits; <code class=\"font-mono text-cyan-400\">au</code> sees everyone's.",
+    a: "No. Editor undo is in-memory and editor-bound — close the tab and it's gone. <span class=\"text-cyan-400\">au</span> is on-disk, editor-agnostic, and survives crashes, restarts, and agent rampages. Your editor sees its own edits; <span class=\"text-cyan-400\">au</span> sees everyone's.",
   },
   {
     q: "Does it work with Cursor, Cline, Aider, Codex, or Continue?",
@@ -18,7 +25,7 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: "Does it touch my .git directory?",
-    a: "Never. <code class=\"font-mono text-cyan-400\">au</code> maintains its own independent content-addressable store under <code class=\"font-mono text-white/85\">.agent-undo/</code>. If your agent nukes <code class=\"font-mono text-white/85\">.git</code> itself, <code class=\"font-mono text-cyan-400\">au</code> is unaffected and can still roll everything back. This is intentional — the two systems are designed to live alongside each other, not on top of each other.",
+    a: "Never. <span class=\"text-cyan-400\">au</span> maintains its own independent content-addressable store under <code class=\"font-mono text-white/85\">.agent-undo/</code>. If your agent nukes <code class=\"font-mono text-white/85\">.git</code> itself, <span class=\"text-cyan-400\">au</span> is unaffected and can still roll everything back. This is intentional — the two systems are designed to live alongside each other, not on top of each other.",
   },
   {
     q: "What happens if the daemon isn't running when my agent writes?",
@@ -26,7 +33,7 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: "How much disk does it use?",
-    a: "Content-addressable and deduped, so usually under 100 MB even on an active project. <code class=\"font-mono text-white/85\">au gc</code> runs a 7-day cutoff by default and sweeps orphaned blobs. Anything you <code class=\"font-mono text-white/85\">pin</code> is kept forever.",
+    a: "Content-addressable and deduped, so usually under 100 MB even on an active project. <code class=\"font-mono text-white/85\">au gc</code> runs a 7-day cutoff by default and sweeps orphaned blobs. Anything you <code class=\"font-mono text-white/85\">au pin</code> is kept forever.",
   },
   {
     q: "Does my code ever leave my machine?",
@@ -34,7 +41,7 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: "Can I run it on CI?",
-    a: "You can, but it's designed for local use. CI is already good at capturing state through commits, artifacts, and logs; <code class=\"font-mono text-cyan-400\">au</code> fills the gap in the inner-loop dev environment, where agents move faster than commits. In CI you'd mostly be duplicating what <code class=\"font-mono text-white/85\">git</code> already does.",
+    a: "You can, but it's designed for local use. CI is already good at capturing state through commits, artifacts, and logs; <span class=\"text-cyan-400\">au</span> fills the gap in the inner-loop dev environment, where agents move faster than commits. In CI you'd mostly be duplicating what <span class=\"text-white/85\">git</span> already does.",
   },
   {
     q: "What's the performance cost?",
@@ -42,7 +49,7 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: "Is it stable enough to rely on?",
-    a: "It's pre-alpha (v0.0.x) with 17 integration tests and CI green on Linux and macOS. The core pipeline is verified, but the CLI surface may still shift. Roadmap: v0.1 ships Cursor/Cline hook adapters and a homebrew tap; v1.0 freezes the CLI surface and publishes to <code class=\"font-mono text-white/85\">crates.io</code>.",
+    a: "It's pre-alpha (v0.0.x) with 17 integration tests and CI green on Linux and macOS. The core pipeline is verified, but the CLI surface may still shift. Roadmap: v0.1 ships Cursor/Cline hook adapters and a homebrew tap; v1.0 freezes the CLI surface and publishes to crates.io.",
   },
 ];
 ---
