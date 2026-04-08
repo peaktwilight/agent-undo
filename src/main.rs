@@ -185,7 +185,12 @@ async fn main() -> Result<()> {
         Command::Status => cmd_status(),
         Command::Serve { daemon } => cmd_serve(daemon),
         Command::Stop => cmd_stop(),
-        Command::Log { limit, .. } => cmd_log(limit),
+        Command::Log {
+            agent,
+            file,
+            since,
+            limit,
+        } => cmd_log(agent, file, since, limit),
         Command::Sessions => cmd_sessions(),
         Command::Diff { event_id, session } => cmd_diff(event_id, session),
         Command::Show {
@@ -405,6 +410,26 @@ fn process_alive(pid: u32) -> bool {
         let _ = pid;
         false
     }
+}
+
+/// Parse a relative duration string like "5m", "2h", "1d" into nanoseconds.
+fn parse_since(s: &str) -> Result<i64> {
+    let s = s.trim();
+    if s.is_empty() {
+        anyhow::bail!("--since cannot be empty (try '5m', '2h', '1d')");
+    }
+    let (num_str, unit) = s.split_at(s.len() - 1);
+    let n: i64 = num_str
+        .parse()
+        .map_err(|_| anyhow::anyhow!("could not parse --since '{s}': try '5m', '2h', '1d'"))?;
+    let mult = match unit {
+        "s" => 1_000_000_000,
+        "m" => 60 * 1_000_000_000,
+        "h" => 60 * 60 * 1_000_000_000,
+        "d" => 24 * 60 * 60 * 1_000_000_000_i64,
+        _ => anyhow::bail!("unknown --since unit '{unit}', use s/m/h/d"),
+    };
+    Ok(n * mult)
 }
 
 fn cmd_pin(label: String) -> Result<()> {
@@ -699,10 +724,30 @@ fn cmd_oops(confirm: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_log(limit: usize) -> Result<()> {
+fn cmd_log(
+    agent: Option<String>,
+    file: Option<String>,
+    since: Option<String>,
+    limit: usize,
+) -> Result<()> {
+    use std::time::{SystemTime, UNIX_EPOCH};
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
-    let events = store.recent_events(limit)?;
+
+    let since_ns = match since.as_deref() {
+        Some(s) => Some(parse_since(s)?),
+        None => None,
+    };
+    // Convert relative duration (nanos before now) to absolute ts_ns.
+    let abs_since = since_ns.map(|ns| {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos() as i64)
+            .unwrap_or(0);
+        now - ns
+    });
+
+    let events = store.filtered_events(agent.as_deref(), file.as_deref(), abs_since, limit)?;
 
     if events.is_empty() {
         println!("no events yet. run `agent-undo serve` and edit a file.");

@@ -268,6 +268,55 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// Filtered timeline query. Pass `None` for any filter to disable it.
+    pub fn filtered_events(
+        &self,
+        agent: Option<&str>,
+        path_substring: Option<&str>,
+        since_ns: Option<i64>,
+        limit: usize,
+    ) -> Result<Vec<EventRow>> {
+        let mut sql = String::from(
+            "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
+             FROM events WHERE 1=1",
+        );
+        let mut bound: Vec<rusqlite::types::Value> = Vec::new();
+
+        if let Some(a) = agent {
+            sql.push_str(" AND attribution = ?");
+            bound.push(rusqlite::types::Value::Text(a.to_string()));
+        }
+        if let Some(p) = path_substring {
+            sql.push_str(" AND path LIKE ?");
+            bound.push(rusqlite::types::Value::Text(format!("%{p}%")));
+        }
+        if let Some(ts) = since_ns {
+            sql.push_str(" AND ts_ns >= ?");
+            bound.push(rusqlite::types::Value::Integer(ts));
+        }
+        sql.push_str(" ORDER BY id DESC LIMIT ?");
+        bound.push(rusqlite::types::Value::Integer(limit as i64));
+
+        let mut stmt = self.conn.prepare(&sql)?;
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            bound.iter().map(|v| v as &dyn rusqlite::ToSql).collect();
+        let rows = stmt.query_map(params_refs.as_slice(), |row| {
+            Ok(EventRow {
+                id: row.get(0)?,
+                ts_ns: row.get(1)?,
+                path: row.get(2)?,
+                before_hash: row.get(3)?,
+                after_hash: row.get(4)?,
+                size_before: row.get(5)?,
+                size_after: row.get(6)?,
+                attribution: row.get(7)?,
+                session_id: row.get(8)?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
     pub fn recent_events(&self, limit: usize) -> Result<Vec<EventRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id

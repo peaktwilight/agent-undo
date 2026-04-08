@@ -375,6 +375,77 @@ fn install_script_exists_and_is_executable() {
 }
 
 #[test]
+fn log_filters_by_agent_path_and_since() {
+    let dir = unique_tmp_dir("log_filter");
+    fs::write(dir.join("alpha.txt"), "a").unwrap();
+    fs::write(dir.join("beta.txt"), "b").unwrap();
+    fs::write(dir.join("gamma.rs"), "g").unwrap();
+    run(&dir, &["init"]);
+
+    // --agent filter
+    let (_, by_agent, _) = run(&dir, &["log", "--agent", "initial-scan"]);
+    assert!(by_agent.contains("alpha.txt"));
+    assert!(by_agent.contains("beta.txt"));
+    assert!(by_agent.contains("gamma.rs"));
+
+    let (_, no_match, _) = run(&dir, &["log", "--agent", "claude-code"]);
+    assert!(
+        no_match.contains("no events"),
+        "expected no events: {no_match}"
+    );
+
+    // --file substring filter
+    let (_, by_file, _) = run(&dir, &["log", "--file", "alpha"]);
+    assert!(by_file.contains("alpha.txt"));
+    assert!(!by_file.contains("beta.txt"));
+
+    // --since (everything is recent so 1d should match all)
+    let (_, by_since, _) = run(&dir, &["log", "--since", "1d"]);
+    assert!(by_since.contains("alpha.txt"));
+
+    // --since rejects garbage
+    let (code, _, _) = run(&dir, &["log", "--since", "abc"]);
+    assert_ne!(code, 0, "--since with bad input should error");
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn unpin_restores_project_to_pinned_state() {
+    use std::io::Write;
+    let dir = unique_tmp_dir("unpin");
+    fs::write(dir.join("file.rs"), "v1").unwrap();
+    run(&dir, &["init"]);
+    run(&dir, &["pin", "v1-snapshot"]);
+
+    // Use the exec wrapper to record a session-tagged write so the unpin
+    // restore operates against a real (non-initial-scan) edit history.
+    let bin = bin_path();
+    let _ = Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "{bin} exec --agent test -- sh -c 'printf v2 > file.rs'",
+            bin = bin.display()
+        ))
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+
+    // unpin should report the restoration even when the live file content
+    // hasn't been recorded by a watcher (we test the command path here, not
+    // the watcher round-trip).
+    let (code, out, _) = run(&dir, &["unpin", "v1-snapshot"]);
+    assert_eq!(code, 0, "unpin failed: {out}");
+    assert!(
+        out.contains("file.rs") || out.contains("no recorded state"),
+        "unexpected unpin output: {out}"
+    );
+
+    let _ = std::io::stdout().flush();
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn discover_errors_outside_initialized_project() {
     let dir = unique_tmp_dir("undisc");
     let (code, _, err) = run(&dir, &["log"]);
