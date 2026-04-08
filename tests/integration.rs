@@ -296,6 +296,44 @@ fn blame_errors_on_unknown_file() {
 }
 
 #[test]
+fn daemon_starts_writes_pidfile_and_stops_cleanly() {
+    let dir = unique_tmp_dir("daemon");
+    fs::write(dir.join("seed.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, _) = run(&dir, &["serve", "--daemon"]);
+    assert_eq!(code, 0, "serve --daemon failed: {out}");
+    assert!(out.contains("daemon started"), "unexpected output: {out}");
+
+    let pidfile = dir.join(".agent-undo/daemon.pid");
+    assert!(pidfile.exists(), "pidfile missing");
+    let pid: u32 = fs::read_to_string(&pidfile)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+    assert!(pid > 0);
+
+    // Modify a file — the daemon should snapshot it.
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    fs::write(dir.join("seed.txt"), "y").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(800));
+
+    let (_, log_out, _) = run(&dir, &["log", "-n", "10"]);
+    assert!(
+        log_out.contains("modify seed.txt"),
+        "daemon should have caught the modification: {log_out}"
+    );
+
+    let (stop_code, stop_out, _) = run(&dir, &["stop"]);
+    assert_eq!(stop_code, 0, "stop failed: {stop_out}");
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(!pidfile.exists(), "pidfile should be cleaned up after stop");
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn discover_errors_outside_initialized_project() {
     let dir = unique_tmp_dir("undisc");
     let (code, _, err) = run(&dir, &["log"]);

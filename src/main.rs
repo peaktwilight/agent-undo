@@ -55,8 +55,15 @@ enum Command {
     /// Show daemon status and recent activity.
     Status,
 
-    /// Start the watcher (foreground). Usually run once via `init` in v0.
-    Serve,
+    /// Start the watcher.
+    Serve {
+        /// Detach into the background and write a pidfile to .agent-undo/daemon.pid.
+        #[arg(long)]
+        daemon: bool,
+    },
+
+    /// Stop a running background daemon (reads .agent-undo/daemon.pid).
+    Stop,
 
     /// Show the timeline of file events.
     Log {
@@ -172,7 +179,8 @@ async fn main() -> Result<()> {
             no_scan,
         } => cmd_init(install_hooks, no_scan),
         Command::Status => cmd_status(),
-        Command::Serve => cmd_serve(),
+        Command::Serve { daemon } => cmd_serve(daemon),
+        Command::Stop => cmd_stop(),
         Command::Log { limit, .. } => cmd_log(limit),
         Command::Sessions => cmd_sessions(),
         Command::Diff { event_id, session } => cmd_diff(event_id, session),
@@ -284,10 +292,114 @@ fn cmd_status() -> Result<()> {
     Ok(())
 }
 
-fn cmd_serve() -> Result<()> {
+fn cmd_serve(detach: bool) -> Result<()> {
     let paths = ProjectPaths::discover()?;
+
+    if detach {
+        return spawn_daemon(&paths);
+    }
+
+    // Foreground mode: write pidfile so `stop` can find us, clean up on exit.
+    let pidfile = paths.data_dir.join("daemon.pid");
+    let _ = std::fs::write(&pidfile, std::process::id().to_string());
     let store = Store::open(paths)?;
-    daemon::serve(store)
+    let result = daemon::serve(store);
+    let _ = std::fs::remove_file(&pidfile);
+    result
+}
+
+fn spawn_daemon(paths: &ProjectPaths) -> Result<()> {
+    use std::process::{Command as Proc, Stdio};
+
+    let pidfile = paths.data_dir.join("daemon.pid");
+    if let Some(existing_pid) = read_pidfile(&pidfile) {
+        if process_alive(existing_pid) {
+            println!(
+                "agent-undo daemon already running (pid {existing_pid}). Use `agent-undo stop` to stop it."
+            );
+            return Ok(());
+        } else {
+            // stale pidfile
+            let _ = std::fs::remove_file(&pidfile);
+        }
+    }
+
+    let log_path = paths.data_dir.join("daemon.log");
+    let log = std::fs::File::create(&log_path)?;
+    let log_err = log.try_clone()?;
+
+    let exe = std::env::current_exe()?;
+    let child = Proc::new(exe)
+        .args(["serve"])
+        .current_dir(&paths.root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log))
+        .stderr(Stdio::from(log_err))
+        .spawn()?;
+
+    // Write the pidfile from the parent so it exists before we return.
+    // The child also writes it on its own startup; that's a harmless rewrite.
+    std::fs::write(&pidfile, child.id().to_string())?;
+
+    println!(
+        "agent-undo daemon started (pid {}). Logs: {}",
+        child.id(),
+        log_path.display()
+    );
+    println!("Stop with: agent-undo stop");
+    Ok(())
+}
+
+fn cmd_stop() -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let pidfile = paths.data_dir.join("daemon.pid");
+    let pid = match read_pidfile(&pidfile) {
+        Some(p) => p,
+        None => {
+            println!("no daemon running for {}", paths.root.display());
+            return Ok(());
+        }
+    };
+    if !process_alive(pid) {
+        println!("stale pidfile for pid {pid}; cleaning up");
+        let _ = std::fs::remove_file(&pidfile);
+        return Ok(());
+    }
+    #[cfg(unix)]
+    {
+        let _ = std::process::Command::new("kill")
+            .arg(pid.to_string())
+            .status();
+        println!("sent SIGTERM to agent-undo daemon (pid {pid})");
+    }
+    #[cfg(not(unix))]
+    {
+        println!("stop on non-unix platforms not yet supported (kill pid {pid} manually)");
+    }
+    let _ = std::fs::remove_file(&pidfile);
+    Ok(())
+}
+
+fn read_pidfile(path: &std::path::Path) -> Option<u32> {
+    let s = std::fs::read_to_string(path).ok()?;
+    s.trim().parse::<u32>().ok()
+}
+
+fn process_alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        // signal 0 doesn't kill, just probes whether the process exists
+        std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        false
+    }
 }
 
 fn cmd_blame(file: String) -> Result<()> {
