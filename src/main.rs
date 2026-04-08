@@ -818,6 +818,16 @@ fn cmd_gc() -> Result<()> {
 
 fn cmd_blame(file: String) -> Result<()> {
     let paths = ProjectPaths::discover()?;
+    if let Ok(response) = ipc::send(&paths, &ipc::Request::BlameFile { path: file.clone() }) {
+        match response {
+            ipc::Response::Text { content } => {
+                print!("{content}");
+                return Ok(());
+            }
+            ipc::Response::Error { message } => anyhow::bail!(message),
+            _ => anyhow::bail!("unexpected daemon response"),
+        }
+    }
     let store = Store::open(paths)?;
     blame::blame(&store, &file)
 }

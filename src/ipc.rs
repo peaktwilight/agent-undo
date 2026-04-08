@@ -41,6 +41,9 @@ pub enum Request {
         before: bool,
         after: bool,
     },
+    BlameFile {
+        path: String,
+    },
     RestoreEvent {
         event_id: i64,
     },
@@ -253,6 +256,9 @@ fn handle_request(
         } => Ok(Response::Bytes {
             bytes: crate::restore::show_event_bytes(&store, event_id, before, after)?,
         }),
+        Request::BlameFile { path } => Ok(Response::Text {
+            content: crate::blame::blame_text(&store, &path)?,
+        }),
         Request::RestoreEvent { event_id } => {
             let ev = store
                 .get_event(event_id)?
@@ -448,6 +454,18 @@ mod tests {
         {
             Response::Bytes { bytes } => assert!(!bytes.is_empty()),
             other => panic!("unexpected show response: {other:?}"),
+        }
+
+        match send(
+            &paths,
+            &Request::BlameFile {
+                path: "f.rs".into(),
+            },
+        )
+        .expect("blame file")
+        {
+            Response::Text { content } => assert!(content.contains("initial-scan")),
+            other => panic!("unexpected blame response: {other:?}"),
         }
 
         match send(&paths, &Request::Shutdown).expect("shutdown request") {

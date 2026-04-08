@@ -34,6 +34,12 @@ struct AnnotatedLine {
 }
 
 pub fn blame(store: &Store, rel_path: &str) -> Result<()> {
+    let text = blame_text(store, rel_path)?;
+    print!("{text}");
+    Ok(())
+}
+
+pub fn blame_text(store: &Store, rel_path: &str) -> Result<String> {
     // Pull every event for this path, oldest first.
     let mut stmt = store.conn.prepare(
         "SELECT id, ts_ns, path, before_hash, after_hash, size_before, size_after, attribution, session_id
@@ -83,8 +89,7 @@ pub fn blame(store: &Store, rel_path: &str) -> Result<()> {
         );
     }
 
-    print_blame(&lines);
-    Ok(())
+    Ok(render_blame(&lines))
 }
 
 fn apply_diff(
@@ -142,10 +147,9 @@ fn apply_diff(
     out
 }
 
-fn print_blame(lines: &[AnnotatedLine]) {
+fn render_blame(lines: &[AnnotatedLine]) -> String {
     if lines.is_empty() {
-        println!("(file is empty)");
-        return;
+        return "(file is empty)\n".into();
     }
 
     // Width alignment pass.
@@ -156,6 +160,7 @@ fn print_blame(lines: &[AnnotatedLine]) {
         .max()
         .unwrap_or(1);
 
+    let mut out = String::new();
     for (n, line) in lines.iter().enumerate() {
         let ts = Local
             .timestamp_nanos(line.ts_ns)
@@ -167,7 +172,7 @@ fn print_blame(lines: &[AnnotatedLine]) {
             .map(|s| &s[..s.len().min(8)])
             .unwrap_or("-");
         let text = line.text.trim_end_matches('\n');
-        println!(
+        out.push_str(&format!(
             "{agent:<agent_w$}  {session:<session_w$}  {ts}  {n:>5}: {text}",
             agent = line.attribution,
             session = session,
@@ -176,6 +181,8 @@ fn print_blame(lines: &[AnnotatedLine]) {
             text = text,
             agent_w = agent_w,
             session_w = session_w,
-        );
+        ));
+        out.push('\n');
     }
+    out
 }
