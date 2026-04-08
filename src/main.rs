@@ -757,8 +757,20 @@ fn cmd_pin(label: Option<String>, list: bool) -> Result<()> {
 
 fn cmd_unpin(label: String) -> Result<()> {
     let paths = ProjectPaths::discover()?;
-    let store = Store::open(paths)?;
-    let restored = restore::restore_pin(&store, &label)?;
+    let restored = match ipc::send(
+        &paths,
+        &ipc::Request::RestorePin {
+            label: label.clone(),
+        },
+    ) {
+        Ok(ipc::Response::Paths { paths }) => paths,
+        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(_) => anyhow::bail!("unexpected daemon response"),
+        Err(_) => {
+            let store = Store::open(paths)?;
+            restore::restore_pin(&store, &label)?
+        }
+    };
     if restored.is_empty() {
         println!("pin '{label}' has no recorded state to restore");
     } else {
@@ -1042,14 +1054,27 @@ fn cmd_diff(event_id: Option<u64>, session: Option<String>) -> Result<()> {
 
 fn cmd_restore(event_id: Option<u64>, file: Option<String>, session: Option<String>) -> Result<()> {
     let paths = ProjectPaths::discover()?;
-    let store = Store::open(paths)?;
 
     match (event_id, file, session) {
         (Some(id), _, _) => {
-            let ev = store
-                .get_event(id as i64)?
-                .ok_or_else(|| anyhow::anyhow!("no event #{id}"))?;
-            restore::restore_to_event(&store, &ev)?;
+            let ev = match ipc::send(
+                &paths,
+                &ipc::Request::RestoreEvent {
+                    event_id: id as i64,
+                },
+            ) {
+                Ok(ipc::Response::Event { event }) => event,
+                Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+                Ok(_) => anyhow::bail!("unexpected daemon response"),
+                Err(_) => {
+                    let store = Store::open(paths.clone())?;
+                    let ev = store
+                        .get_event(id as i64)?
+                        .ok_or_else(|| anyhow::anyhow!("no event #{id}"))?;
+                    restore::restore_to_event(&store, &ev)?;
+                    ev
+                }
+            };
             println!(
                 "restored {} to state before event #{} ({})",
                 ev.path,
@@ -1062,7 +1087,15 @@ fn cmd_restore(event_id: Option<u64>, file: Option<String>, session: Option<Stri
             Ok(())
         }
         (None, Some(path), _) => {
-            let ev = restore::restore_latest_change_to_file(&store, &path)?;
+            let ev = match ipc::send(&paths, &ipc::Request::RestoreFile { path: path.clone() }) {
+                Ok(ipc::Response::Event { event }) => event,
+                Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+                Ok(_) => anyhow::bail!("unexpected daemon response"),
+                Err(_) => {
+                    let store = Store::open(paths.clone())?;
+                    restore::restore_latest_change_to_file(&store, &path)?
+                }
+            };
             println!(
                 "restored {} — undid event #{} (attribution: {})",
                 path, ev.id, ev.attribution
@@ -1070,7 +1103,20 @@ fn cmd_restore(event_id: Option<u64>, file: Option<String>, session: Option<Stri
             Ok(())
         }
         (None, None, Some(session_id)) => {
-            let restored = restore::restore_session(&store, &session_id)?;
+            let restored = match ipc::send(
+                &paths,
+                &ipc::Request::RestoreSession {
+                    session_id: session_id.clone(),
+                },
+            ) {
+                Ok(ipc::Response::Paths { paths }) => paths,
+                Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+                Ok(_) => anyhow::bail!("unexpected daemon response"),
+                Err(_) => {
+                    let store = Store::open(paths)?;
+                    restore::restore_session(&store, &session_id)?
+                }
+            };
             if restored.is_empty() {
                 println!("no events found for session {session_id}");
             } else {
@@ -1099,9 +1145,21 @@ fn cmd_oops(confirm: bool) -> Result<()> {
     const WINDOW_NS: i64 = 30 * 1_000_000_000; // 30 seconds
 
     let paths = ProjectPaths::discover()?;
-    let store = Store::open(paths)?;
 
-    let plan = restore::oops_plan(&store, WINDOW_NS)?;
+    let plan = match ipc::send(
+        &paths,
+        &ipc::Request::OopsPlan {
+            window_ns: WINDOW_NS,
+        },
+    ) {
+        Ok(ipc::Response::Plan { items }) => items,
+        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(_) => anyhow::bail!("unexpected daemon response"),
+        Err(_) => {
+            let store = Store::open(paths.clone())?;
+            restore::oops_plan(&store, WINDOW_NS)?
+        }
+    };
     if plan.is_empty() {
         println!("nothing to undo — no recent user events.");
         return Ok(());
@@ -1138,7 +1196,20 @@ fn cmd_oops(confirm: bool) -> Result<()> {
         return Ok(());
     }
 
-    let done = restore::oops(&store, WINDOW_NS)?;
+    let done = match ipc::send(
+        &paths,
+        &ipc::Request::OopsApply {
+            window_ns: WINDOW_NS,
+        },
+    ) {
+        Ok(ipc::Response::Plan { items }) => items,
+        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(_) => anyhow::bail!("unexpected daemon response"),
+        Err(_) => {
+            let store = Store::open(paths)?;
+            restore::oops(&store, WINDOW_NS)?
+        }
+    };
     println!();
     println!("restored {} file(s):", done.len());
     for (path, _) in &done {

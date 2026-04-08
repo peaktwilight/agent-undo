@@ -41,6 +41,24 @@ pub enum Request {
         before: bool,
         after: bool,
     },
+    RestoreEvent {
+        event_id: i64,
+    },
+    RestoreFile {
+        path: String,
+    },
+    RestoreSession {
+        session_id: String,
+    },
+    RestorePin {
+        label: String,
+    },
+    OopsPlan {
+        window_ns: i64,
+    },
+    OopsApply {
+        window_ns: i64,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +84,15 @@ pub enum Response {
     },
     Bytes {
         bytes: Vec<u8>,
+    },
+    Event {
+        event: EventRow,
+    },
+    Paths {
+        paths: Vec<String>,
+    },
+    Plan {
+        items: Vec<(String, EventRow)>,
     },
     Error {
         message: String,
@@ -225,6 +252,28 @@ fn handle_request(
             after,
         } => Ok(Response::Bytes {
             bytes: crate::restore::show_event_bytes(&store, event_id, before, after)?,
+        }),
+        Request::RestoreEvent { event_id } => {
+            let ev = store
+                .get_event(event_id)?
+                .ok_or_else(|| anyhow::anyhow!("no event #{event_id}"))?;
+            crate::restore::restore_to_event(&store, &ev)?;
+            Ok(Response::Event { event: ev })
+        }
+        Request::RestoreFile { path } => Ok(Response::Event {
+            event: crate::restore::restore_latest_change_to_file(&store, &path)?,
+        }),
+        Request::RestoreSession { session_id } => Ok(Response::Paths {
+            paths: crate::restore::restore_session(&store, &session_id)?,
+        }),
+        Request::RestorePin { label } => Ok(Response::Paths {
+            paths: crate::restore::restore_pin(&store, &label)?,
+        }),
+        Request::OopsPlan { window_ns } => Ok(Response::Plan {
+            items: crate::restore::oops_plan(&store, window_ns)?,
+        }),
+        Request::OopsApply { window_ns } => Ok(Response::Plan {
+            items: crate::restore::oops(&store, window_ns)?,
         }),
     }
 }
