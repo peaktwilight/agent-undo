@@ -1,15 +1,13 @@
 ---
 /**
  * FAQ — native <details> accordion. Zero JS. Centered header, left-aligned
- * question list inside a centered max-w-4xl container.
- *
- * Trimmed from 10 → 7: cut 'stability', 'performance cost', and 'does my
- * code leave my machine' — those are already answered by the crates.io
- * link, the 'local-first' eyebrow, and the fact that the page exists.
+ * question list inside a centered max-w-3xl container.
  *
  * Typography: standalone 'au'/'git' as project names use <span> with a
  * color only. Real commands, file paths, and literal values use <code>.
  */
+import SectionHeader from "../ui/SectionHeader.astro";
+
 const faqs: { q: string; a: string }[] = [
   {
     q: "How is this different from git?",
@@ -43,18 +41,10 @@ const faqs: { q: string; a: string }[] = [
 ---
 <section class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-    <div data-reveal class="mx-auto mb-16 max-w-3xl text-center">
-      <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
-        Questions
-      </p>
-      <h2
-        class="text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
-        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
-      >
-        Seven things developers ask
-        <span class="text-white/45">before they install.</span>
-      </h2>
-    </div>
+    <SectionHeader eyebrow="Questions">
+      Seven things developers ask
+      <span class="text-white/45">before they install.</span>
+    </SectionHeader>
 
     <div data-reveal class="mx-auto max-w-3xl">
       {faqs.map((faq) => (

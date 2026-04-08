@@ -1,58 +1,34 @@
 ---
 /**
- * Villain — the receipts. Centered header, two pull quotes, nothing else.
- * The quotes are the argument; a closing paragraph would be restating.
+ * Villain — the receipts. Centered header, two full pull quotes.
+ * The longer quote bodies stay because the voice matters — punchlines
+ * were too clean; the original language is the proof.
  */
+import SectionHeader from "../ui/SectionHeader.astro";
+import PullQuote from "../ui/PullQuote.astro";
 ---
 <section class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-    <div data-reveal class="mx-auto mb-16 max-w-3xl text-center">
-      <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
-        Why this exists
-      </p>
-      <h2
-        class="text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
-        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
-      >
-        Your editor's undo
-        <span class="text-white/45">is broken.</span>
-      </h2>
-    </div>
+    <SectionHeader eyebrow="Why this exists">
+      Your editor's undo
+      <span class="text-white/45">is broken.</span>
+    </SectionHeader>
 
     <div data-reveal class="mx-auto grid max-w-6xl gap-16 lg:grid-cols-2">
-      <figure>
-        <blockquote
-          class="text-2xl leading-[1.3] font-medium text-white sm:text-3xl"
-          style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
-        >
-          &ldquo;Close the Agent Review Tab before the agent makes edits.&rdquo;
-        </blockquote>
-        <figcaption class="mt-6 text-sm text-white/55">
-          <span class="text-white">deanrie</span>, Cursor staff · Jan 2026 ·
-          <a
-            href="https://forum.cursor.com/t/agent-code-changes-are-automatically-deleted/149024"
-            rel="noopener"
-            class="underline decoration-white/20 underline-offset-4 hover:text-white hover:decoration-white/50"
-          >forum.cursor.com</a>
-        </figcaption>
-      </figure>
+      <PullQuote
+        quote="This is a known issue, a bug caused by a conflict between the Agent Review Tab and file editing. Close the Agent Review Tab before the agent makes edits."
+        author="deanrie"
+        role="Cursor staff"
+        date="Jan 16, 2026"
+        href="https://forum.cursor.com/t/agent-code-changes-are-automatically-deleted/149024"
+      />
 
-      <figure>
-        <blockquote
-          class="text-2xl leading-[1.3] font-medium text-white sm:text-3xl"
-          style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
-        >
-          &ldquo;<span class="text-white/65">90% of my app is gone.</span>&rdquo;
-        </blockquote>
-        <figcaption class="mt-6 text-sm text-white/55">
-          <span class="text-white">Jonneal3</span> · May 2025 ·
-          <a
-            href="https://forum.cursor.com/t/help-needed-asap-cursor-deleted-my-whole-proejct/97589"
-            rel="noopener"
-            class="underline decoration-white/20 underline-offset-4 hover:text-white hover:decoration-white/50"
-          >forum.cursor.com</a>
-        </figcaption>
-      </figure>
+      <PullQuote
+        quote={`cursor agent went off the hinges and started deleting my entire app. <span class="text-white/65">90% of my app is gone &hellip; I hadn't gotten a chance to push to github yet.</span>`}
+        author="Jonneal3"
+        date="May 27, 2025"
+        href="https://forum.cursor.com/t/help-needed-asap-cursor-deleted-my-whole-proejct/97589"
+      />
     </div>
   </div>
 </section>

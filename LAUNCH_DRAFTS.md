@@ -17,7 +17,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 
 > My dear developers (and anyone who's ever lost code to an AI agent):
 >
-> I have built **agent-undo**, a single 3.9 MB Rust binary. The command is `au`. After your AI coding agent destroys your code, you type `au oops` and the last session is gone. Editor-agnostic. Local-first. No cloud. The agent now has a safety net that survives even when .git is gone.
+> I have built **agent-undo**, a single 4 MB Rust binary. The command is `au`. After your AI coding agent destroys your code, you type `au oops` and the last session is gone. Editor-agnostic. Local-first. No cloud. The agent now has a safety net that survives even when .git is gone.
 >
 > agent-undo.com
 
@@ -88,7 +88,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 > au init --install-hooks
 > ```
 >
-> Single 3.9 MB binary. No runtime. macOS + Linux. Windows soon.
+> Single 4 MB binary. No runtime. macOS + Linux. Windows soon.
 >
 > github.com/peaktwilight/agent-undo
 
@@ -128,7 +128,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 
 > agent-undo: Ctrl-Z for AI coding agents.
 >
-> A single 3.9 MB Rust binary that snapshots every file your AI agent writes, attributes every edit to the specific agent that made it, and gives you one-command rollback when something goes wrong.
+> A single 4 MB Rust binary that snapshots every file your AI agent writes, attributes every edit to the specific agent that made it, and gives you one-command rollback when something goes wrong.
 >
 > agent-undo.com | github.com/peaktwilight/agent-undo
 
@@ -137,7 +137,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 ## HN Show post
 
 **Title:**
-> Show HN: agent-undo – Ctrl-Z for AI coding agents (Rust, 3.9 MB binary)
+> Show HN: agent-undo – Ctrl-Z for AI coding agents (Rust, 4 MB binary)
 
 **Body:**
 
@@ -148,7 +148,7 @@ Their forum is full of users mocking it. Claude Code has no first-class undo
 at all. Every editor's checkpoint feature is editor-bound and breaks under
 concurrent writes.
 
-agent-undo is a single 3.9 MB Rust binary that runs as a tiny background
+agent-undo is a single 4 MB Rust binary that runs as a tiny background
 daemon per project. It watches for file writes via notify-rs, hashes every
 changed file with BLAKE3 into a content-addressable store, and records each
 event to a SQLite timeline. When you install the Claude Code hook (one
@@ -190,7 +190,7 @@ design, or why I picked the specific dependency stack.
 
 ## r/cursor / r/ClaudeAI / r/LocalLLaMA post
 
-**Title:** I built the rollback Cursor should have shipped (Rust, 3.9 MB binary)
+**Title:** I built the rollback Cursor should have shipped (Rust, 4 MB binary)
 
 **Body:**
 

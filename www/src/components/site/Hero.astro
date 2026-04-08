@@ -1,16 +1,11 @@
 ---
 /**
  * Hero — pwnkit-cloud split-grid pattern.
- *
- * Single section. Headline column on the left (1.45fr) + terminal column
- * on the right (1fr) on lg+. On smaller screens the terminal stacks under
- * the headline at full width.
- *
- * Restraint over spectacle. No gradient text, no pulsing dots, no eyebrow
- * badge, no entrance animations beyond the IntersectionObserver fade-in.
- * Single CTA. Three short headline lines (not two long-ish ones). One
- * sentence sub. One proof line.
+ * Headline column on the left (1.45fr) + terminal column (1fr) on lg+.
+ * Single CTA: the cyan install command pill. Proof line below.
  */
+import CopyButton from "../ui/CopyButton.astro";
+
 interface Props {
   installCmd: string;
   githubUrl: string;
@@ -41,26 +36,17 @@ const { installCmd, githubUrl } = Astro.props;
         </h1>
 
         <div data-reveal class="mt-12 flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            class="copy-btn group inline-flex h-12 items-center gap-3 rounded-md bg-cyan-400 px-6 font-mono text-[14px] font-semibold text-black transition-colors hover:bg-cyan-300"
-            data-copy={installCmd}
-            aria-label="Copy install command"
-          >
-            <span class="text-black/55">$</span>
-            <span>{installCmd}</span>
-            <svg class="copy-icon h-4 w-4 text-black/55 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-            </svg>
-            <svg class="check-icon hidden h-4 w-4 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </button>
+          <CopyButton
+            command={installCmd}
+            class="inline-flex h-12 items-center gap-3 rounded-md bg-cyan-400 px-6 font-mono text-[14px] font-semibold text-black transition-colors hover:bg-cyan-300"
+            dollarClass="text-black/55"
+            copyIconClass="text-black/55"
+            checkIconClass="text-emerald-700"
+          />
         </div>
 
         <p data-reveal class="mt-10 max-w-2xl text-sm text-white/45">
-          3.9&nbsp;MB Rust binary &middot;
+          4&nbsp;MB Rust binary &middot;
           <a href="https://crates.io/crates/agent-undo" rel="noopener" class="text-white underline decoration-cyan-400/40 underline-offset-4 hover:decoration-cyan-400">agent-undo</a>
           on crates.io &middot; Apache-2.0
         </p>

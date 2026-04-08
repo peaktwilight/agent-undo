@@ -1,9 +1,9 @@
 ---
 /**
  * Principle — manifesto section. Centered header + centered prose column.
- * Four paragraphs from PHILOSOPHY.md, each tightened to one load-bearing
- * claim. Link out to the full essay for readers who want more.
  */
+import SectionHeader from "../ui/SectionHeader.astro";
+
 interface Props {
   githubUrl: string;
 }
@@ -11,19 +11,10 @@ const { githubUrl } = Astro.props;
 ---
 <section class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-    <div class="mx-auto max-w-3xl text-center">
-      <p data-reveal class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
-        The principle
-      </p>
-      <h2
-        data-reveal
-        class="mb-12 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
-        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
-      >
-        The agent is
-        <span class="text-cyan-400">an untrusted process.</span>
-      </h2>
-    </div>
+    <SectionHeader eyebrow="The principle" mb="mb-12">
+      The agent is
+      <span class="text-cyan-400">an untrusted process.</span>
+    </SectionHeader>
 
     <div class="mx-auto max-w-2xl">
       <div data-reveal class="space-y-6 text-[17px] leading-[1.65] text-white/65">

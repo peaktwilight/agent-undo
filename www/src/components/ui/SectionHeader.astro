@@ -1,0 +1,41 @@
+---
+/**
+ * SectionHeader — the eyebrow + 2-line headline block used by every
+ * section below the hero. Default is centered + max-w-3xl; pass
+ * align="left" or a wider `maxW` for essay-column sections.
+ *
+ * Usage:
+ *   <SectionHeader eyebrow="The shift">
+ *     Source control assumes a human writer.
+ *     <span class="text-white/45">AI broke that assumption.</span>
+ *   </SectionHeader>
+ */
+interface Props {
+  eyebrow: string;
+  align?: "left" | "center";
+  maxW?: string; // Tailwind max-w-* class, default max-w-3xl
+  class?: string;
+  mb?: string; // Tailwind mb-* class, default mb-16
+}
+
+const {
+  eyebrow,
+  align = "center",
+  maxW = "max-w-3xl",
+  class: className = "",
+  mb = "mb-16",
+} = Astro.props;
+
+const alignClass = align === "center" ? "mx-auto text-center" : "";
+---
+<div data-reveal class={`${mb} ${maxW} ${alignClass} ${className}`}>
+  <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+    {eyebrow}
+  </p>
+  <h2
+    class="text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
+    style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
+  >
+    <slot />
+  </h2>
+</div>

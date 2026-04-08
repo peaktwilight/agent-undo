@@ -1,0 +1,72 @@
+---
+/**
+ * CopyButton — a button that copies `command` to clipboard on click and
+ * toggles between the copy icon and the check icon for ~1.4s.
+ *
+ * The click handler is global (defined once in index.astro for all
+ * [data-copy] elements). This component just renders the DOM.
+ *
+ * The parent controls outer styling (colors, border, size) via
+ * `class`. The component only handles the inner layout, the SVGs, and
+ * the data-copy attribute.
+ */
+interface Props {
+  command: string;
+  class?: string;
+  iconSize?: "sm" | "md";
+  /** Text color class for the '$' prefix (e.g. 'text-white/40'). */
+  dollarClass?: string;
+  /** Color class for the copy icon (copy state). */
+  copyIconClass?: string;
+  /** Color class for the check icon (copied state). */
+  checkIconClass?: string;
+  showDollar?: boolean;
+  ariaLabel?: string;
+}
+
+const {
+  command,
+  class: className = "",
+  iconSize = "md",
+  dollarClass = "text-white/40",
+  copyIconClass = "text-white/40",
+  checkIconClass = "text-cyan-400",
+  showDollar = true,
+  ariaLabel = `Copy: ${command}`,
+} = Astro.props;
+
+const iconDim = iconSize === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
+---
+<button
+  type="button"
+  class={`copy-btn group ${className}`}
+  data-copy={command}
+  aria-label={ariaLabel}
+>
+  <span class="overflow-x-auto whitespace-nowrap">
+    {showDollar && <span class={dollarClass}>$</span>} {command}
+  </span>
+  <svg
+    class={`copy-icon ${iconDim} shrink-0 transition-colors ${copyIconClass}`}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+  </svg>
+  <svg
+    class={`check-icon hidden ${iconDim} shrink-0 ${checkIconClass}`}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <polyline points="20 6 9 17 4 12"></polyline>
+  </svg>
+</button>

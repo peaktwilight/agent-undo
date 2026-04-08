@@ -54,7 +54,7 @@ Or from source:
 cargo install agent-undo
 ```
 
-Or from the latest GitHub release: macOS (arm64, x64), Linux (x64, arm64) — single 3.9 MB binary, no runtime.
+Or from the latest GitHub release: macOS (arm64, x64), Linux (x64, arm64) — single 4 MB binary, no runtime.
 
 After install you'll have `au` on your PATH.
 
