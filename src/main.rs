@@ -67,7 +67,10 @@ enum Command {
     },
 
     /// Show daemon status and recent activity.
-    Status,
+    Status {
+        #[arg(long)]
+        json: bool,
+    },
 
     /// Start the watcher.
     Serve {
@@ -94,7 +97,10 @@ enum Command {
     },
 
     /// List agent sessions.
-    Sessions,
+    Sessions {
+        #[arg(long)]
+        json: bool,
+    },
 
     /// Show the diff for a single event or an entire session.
     Diff {
@@ -240,7 +246,7 @@ async fn main() -> Result<()> {
             uninstall_hooks,
             no_scan,
         } => cmd_init(install_hooks, uninstall_hooks, no_scan),
-        Command::Status => cmd_status(),
+        Command::Status { json } => cmd_status(json),
         Command::Serve { daemon } => cmd_serve(daemon),
         Command::Stop => cmd_stop(),
         Command::Log {
@@ -250,7 +256,7 @@ async fn main() -> Result<()> {
             json,
             limit,
         } => cmd_log(agent, file, since, json, limit),
-        Command::Sessions => cmd_sessions(),
+        Command::Sessions { json } => cmd_sessions(json),
         Command::Diff { event_id, session } => cmd_diff(event_id, session),
         Command::Show {
             event_id,
@@ -381,10 +387,13 @@ fn cmd_init(install_hooks: bool, uninstall_hooks: bool, no_scan: bool) -> Result
     Ok(())
 }
 
-fn cmd_status() -> Result<()> {
+fn cmd_status(json: bool) -> Result<()> {
     let paths = match ProjectPaths::discover() {
         Ok(p) => p,
         Err(e) => {
+            if json {
+                anyhow::bail!(e);
+            }
             println!("{e}");
             return Ok(());
         }
@@ -396,6 +405,26 @@ fn cmd_status() -> Result<()> {
         let store = Store::open(paths.clone())?;
         store.event_count()?
     };
+    if json {
+        let daemon_running = socket_status.is_some();
+        let active_session = match &socket_status {
+            Some(ipc::Response::Status { active_session, .. }) => active_session.clone(),
+            _ => None,
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "root": paths.root,
+                "data": paths.data_dir,
+                "database": paths.db_path,
+                "events": events,
+                "daemon_running": daemon_running,
+                "socket_path": paths.socket_path,
+                "active_session": active_session,
+            }))?
+        );
+        return Ok(());
+    }
     println!("root:     {}", paths.root.display());
     println!("data:     {}", paths.data_dir.display());
     println!("events:   {events}");
@@ -1137,7 +1166,7 @@ fn cmd_session_end(session_id: String) -> Result<()> {
     Ok(())
 }
 
-fn cmd_sessions() -> Result<()> {
+fn cmd_sessions(json: bool) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let sessions = match ipc::send(&paths, &ipc::Request::Sessions { limit: 50 }) {
         Ok(ipc::Response::Sessions { sessions }) => sessions,
@@ -1148,6 +1177,10 @@ fn cmd_sessions() -> Result<()> {
             store.list_sessions(50)?
         }
     };
+    if json {
+        println!("{}", serde_json::to_string_pretty(&sessions)?);
+        return Ok(());
+    }
     if sessions.is_empty() {
         println!("no sessions recorded yet.");
         return Ok(());

@@ -101,6 +101,22 @@ fn status_reports_correct_event_count() {
 }
 
 #[test]
+fn status_json_outputs_machine_readable_fields() {
+    let dir = unique_tmp_dir("status_json");
+    fs::write(dir.join("x.md"), "# hi").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["status", "--json"]);
+    assert_eq!(code, 0, "status --json failed: {err}");
+    let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(parsed["events"], 1);
+    assert!(parsed.get("root").is_some());
+    assert!(parsed.get("daemon_running").is_some());
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn hook_pre_writes_active_session_and_post_clears_it() {
     let dir = unique_tmp_dir("hook");
     fs::write(dir.join("f.rs"), "original").unwrap();
@@ -404,6 +420,29 @@ fn session_start_and_end_manage_active_session_marker() {
         sessions.contains("cursor"),
         "sessions list missing cursor entry: {sessions}"
     );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn sessions_json_outputs_machine_readable_rows() {
+    let dir = unique_tmp_dir("sessions_json");
+    fs::write(dir.join("f.rs"), "original").unwrap();
+    run(&dir, &["init"]);
+
+    let start = Command::new(bin_path())
+        .args(["session", "start", "--agent", "cursor"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert_eq!(start.status.code().unwrap_or(-1), 0);
+
+    let (code, out, err) = run(&dir, &["sessions", "--json"]);
+    assert_eq!(code, 0, "sessions --json failed: {err}");
+    let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let rows = parsed.as_array().expect("sessions json should be an array");
+    assert!(!rows.is_empty());
+    assert_eq!(rows[0]["agent"], "cursor");
 
     fs::remove_dir_all(&dir).ok();
 }

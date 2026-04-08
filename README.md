@@ -78,7 +78,9 @@ au serve --daemon             # background watcher
 
 au log                        # see every file event, attributed
 au log --json                 # scriptable timeline output
+au status --json              # machine-readable health/status
 au sessions                   # list recent agent sessions
+au sessions --json            # machine-readable session rows
 au pin --list                 # inspect saved restore points
 au oops                       # undo the last burst of agent edits
 au doctor --fix               # diagnose + repair common local issues
