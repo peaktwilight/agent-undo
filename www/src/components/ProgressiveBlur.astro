@@ -1,0 +1,70 @@
+---
+/**
+ * Progressive blur stack — the iOS / visionOS "liquid glass" effect.
+ *
+ * Stacks 8 backdrop-filter layers with exponentially increasing blur amounts
+ * (0.125px → 16px) and overlapping mask-image gradients. Adjacent layers
+ * blend invisibly, so content dissolves smoothly into the glass instead
+ * of hitting a hard backdrop-filter cutoff.
+ *
+ * Adapted from pwnkit-cloud's ProgressiveBlur.astro (which was reverse-
+ * engineered from tryaether.ai's 8-layer technique).
+ *
+ * Props:
+ *   direction — 'top' fades from solid (top) → transparent (bottom),
+ *               'bottom' fades from transparent (top) → solid (bottom).
+ *               Use 'top' for sticky headers (content dissolves UP into glass).
+ *               Use 'bottom' for sticky footers (content dissolves DOWN into glass).
+ *   height    — Tailwind h-* class for the stack container. Default h-24.
+ *   tint      — base bg color the layers sit on. Default bg-transparent.
+ */
+interface Props {
+  direction?: "top" | "bottom";
+  height?: string;
+  tint?: string;
+  class?: string;
+}
+
+const {
+  direction = "top",
+  height = "h-24",
+  tint = "bg-transparent",
+  class: className = "",
+} = Astro.props;
+
+// 8 layers, each 12.5% wide, sliding by 12.5%.
+// For 'top' direction we want the blur strongest at the TOP of the stack,
+// weakest at the bottom (so it merges into clean content below).
+const layers = [
+  { blur: 0.125, start: 0 },
+  { blur: 0.25, start: 12.5 },
+  { blur: 0.5, start: 25 },
+  { blur: 1, start: 37.5 },
+  { blur: 2, start: 50 },
+  { blur: 4, start: 62.5 },
+  { blur: 8, start: 75 },
+  { blur: 16, start: 87.5 },
+];
+
+// Build mask: a 25%-wide solid band centered on `start + 25%`,
+// with 12.5% fade-in before and 12.5% fade-out after.
+function maskFor(start: number, dir: "top" | "bottom") {
+  const a = start;
+  const b = start + 12.5;
+  const c = start + 25;
+  const d = start + 37.5;
+  return dir === "top"
+    ? `linear-gradient(to top, rgba(0,0,0,0) ${a}%, rgba(0,0,0,1) ${b}%, rgba(0,0,0,1) ${c}%, rgba(0,0,0,0) ${d}%)`
+    : `linear-gradient(to bottom, rgba(0,0,0,0) ${a}%, rgba(0,0,0,1) ${b}%, rgba(0,0,0,1) ${c}%, rgba(0,0,0,0) ${d}%)`;
+}
+---
+
+<div class={`pointer-events-none ${height} ${className}`} aria-hidden="true">
+  {
+    layers.map(({ blur, start }) => {
+      const mask = maskFor(start, direction);
+      const style = `backdrop-filter: blur(${blur}px); -webkit-backdrop-filter: blur(${blur}px); mask-image: ${mask}; -webkit-mask-image: ${mask};`;
+      return <div class={`absolute inset-0 ${tint}`} style={style}></div>;
+    })
+  }
+</div>

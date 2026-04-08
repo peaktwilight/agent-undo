@@ -1,12 +1,25 @@
 ---
+/**
+ * Landing page composition.
+ *
+ * Section list is intentionally tight (pwnkit-cloud OSS pattern):
+ *
+ *   Hero        — split-grid headline + terminal, single CTA
+ *   Shift       — git/au two-card category claim
+ *   Villain     — Cursor staff receipts (the proof)
+ *   Install     — install command + 3-step guide
+ *   Principle   — "the agent is an untrusted process" essay teaser
+ *   FAQ         — 10 native <details> questions
+ *   FinalCTA    — closing pill button
+ *
+ * Cut from earlier draft (kept in repo for /docs/* later, just not on the
+ * landing): HeroTerminal (merged into Hero), HowItWorks, Commands.
+ */
 import Layout from "../layouts/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import Hero from "../components/site/Hero.astro";
-import HeroTerminal from "../components/site/HeroTerminal.astro";
 import Shift from "../components/site/Shift.astro";
-import HowItWorks from "../components/site/HowItWorks.astro";
-import Commands from "../components/site/Commands.astro";
 import Villain from "../components/site/Villain.astro";
 import Install from "../components/site/Install.astro";
 import Principle from "../components/site/Principle.astro";
@@ -23,10 +36,7 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
 
   <main>
     <Hero installCmd={installCmd} githubUrl={githubUrl} />
-    <HeroTerminal />
     <Shift />
-    <HowItWorks />
-    <Commands />
     <Villain />
     <Install installCmd={installCmd} cargoCmd={cargoCmd} githubUrl={githubUrl} />
     <Principle githubUrl={githubUrl} />
@@ -59,8 +69,6 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
   });
 
   // Scroll-triggered fade-in for [data-reveal] elements.
-  // Adds .is-visible when the element enters the viewport; global.css does
-  // the opacity + translate transition. Runs once per element.
   if ("IntersectionObserver" in window) {
     const io = new IntersectionObserver(
       (entries) => {
@@ -75,7 +83,6 @@ const githubUrl = "https://github.com/peaktwilight/agent-undo";
     );
     document.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => io.observe(el));
   } else {
-    // Fallback: make everything visible immediately.
     document.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => el.classList.add("is-visible"));
   }
 </script>

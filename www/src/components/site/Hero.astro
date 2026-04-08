@@ -1,14 +1,15 @@
 ---
 /**
- * Hero — above-the-fold section.
+ * Hero — pwnkit-cloud split-grid pattern.
  *
- * Clamp-based fluid type, font-black Outfit headline, single accent word
- * (`au`), install command pill + GitHub button, proof line. No gradients,
- * no pulsing indicators, no animations beyond the `reveal` class picked up
- * by the IntersectionObserver in global.css.
+ * Single section. Headline column on the left (1.45fr) + terminal column
+ * on the right (1fr) on lg+. On smaller screens the terminal stacks under
+ * the headline at full width.
  *
- * The terminal mockup below the fold lives in its own `HeroTerminal.astro`
- * component and is intentionally static — the content is the hook.
+ * Restraint over spectacle. No gradient text, no pulsing dots, no eyebrow
+ * badge, no entrance animations beyond the IntersectionObserver fade-in.
+ * Single CTA. Three short headline lines (not two long-ish ones). One
+ * sentence sub. One proof line.
  */
 interface Props {
   installCmd: string;
@@ -16,63 +17,88 @@ interface Props {
 }
 const { installCmd, githubUrl } = Astro.props;
 ---
-<section class="relative overflow-hidden border-b border-white/5">
-  <div class="mx-auto max-w-7xl px-6 pt-20 pb-28 sm:pt-28 sm:pb-36 lg:pt-32 lg:pb-44">
-    <div data-reveal class="mb-10">
-      <span class="text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
-        Source control for the code your agent wrote
-      </span>
+<section class="relative isolate overflow-hidden border-b border-white/5">
+  <div class="mx-auto max-w-7xl px-6 pt-20 pb-28 sm:pt-24 sm:pb-36 lg:pt-28 lg:pb-44">
+    <div class="lg:grid lg:grid-cols-[1.45fr_1fr] lg:items-start lg:gap-12">
+      <div>
+        <div data-reveal class="mb-10">
+          <span class="text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+            Source control for the code your agent wrote
+          </span>
+        </div>
+
+        <h1
+          data-reveal
+          class="max-w-5xl text-[clamp(2.6rem,7vw,6.5rem)] font-black leading-[0.98] tracking-[-0.015em] text-white"
+          style="font-family: 'Outfit', 'Inter Variable', sans-serif; font-feature-settings: 'cv11', 'ss01';"
+        >
+          git for humans.<br />
+          <code class="font-mono font-black text-cyan-400">au</code> for agents.<br />
+          <span class="text-white/45">One command undo.</span>
+        </h1>
+
+        <p data-reveal class="mt-10 max-w-xl text-lg leading-relaxed text-white/65">
+          Every byte your AI coding agent writes &mdash; captured, attributed, reversible.
+          <span class="text-white">Editor-agnostic. Local-first. 3.9 MB Rust binary.</span>
+        </p>
+
+        <div data-reveal class="mt-12 flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            class="copy-btn group inline-flex h-12 items-center gap-3 rounded-md bg-cyan-400 px-6 font-mono text-[14px] font-semibold text-black transition-colors hover:bg-cyan-300"
+            data-copy={installCmd}
+            aria-label="Copy install command"
+          >
+            <span class="text-black/55">$</span>
+            <span>{installCmd}</span>
+            <svg class="copy-icon h-4 w-4 text-black/55 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+            </svg>
+            <svg class="check-icon hidden h-4 w-4 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <p data-reveal class="mt-10 max-w-2xl text-sm text-white/45">
+          <a href="https://crates.io/crates/agent-undo" rel="noopener" class="text-white underline decoration-cyan-400/40 underline-offset-4 hover:decoration-cyan-400">agent-undo</a>
+          on crates.io &middot;
+          <a href={`${githubUrl}/releases/latest`} rel="noopener" class="text-white/65 underline decoration-white/15 underline-offset-4 hover:text-white hover:decoration-white/40">v0.0.3 release</a>
+          &middot; Apache-2.0
+        </p>
+      </div>
+
+      {/* Terminal column — embedded in the hero on lg+, full-width below
+          on smaller screens. No glow, hairline border, blinking cursor. */}
+      <div data-reveal class="mt-14 lg:mt-0">
+        <div class="overflow-hidden rounded-lg border border-white/10 bg-[#0f0f0f]">
+          <div class="flex items-center gap-2 border-b border-white/10 bg-white/[0.02] px-4 py-2.5">
+            <div class="flex gap-1.5">
+              <div class="h-2.5 w-2.5 rounded-full bg-white/15"></div>
+              <div class="h-2.5 w-2.5 rounded-full bg-white/15"></div>
+              <div class="h-2.5 w-2.5 rounded-full bg-white/15"></div>
+            </div>
+            <span class="ml-2 font-mono text-[11px] text-white/45">~/my-project</span>
+          </div>
+          <div class="space-y-1 px-5 py-5 text-left font-mono text-[12px] leading-relaxed sm:text-[13px]">
+            <div class="text-white/45">$ au oops</div>
+            <div class="h-1.5"></div>
+            <div class="text-white/85">
+              ⚠  <span class="text-cyan-400">claude-code</span> · 14:32 · 5 files
+            </div>
+            <div class="pl-5 text-white/60">src/auth.rs <span class="text-white/30">(-87)</span></div>
+            <div class="pl-5 text-white/60">src/middleware.rs <span class="text-white/30">(-23)</span></div>
+            <div class="pl-5 text-white/60">src/lib.rs <span class="text-white/30">(-4)</span></div>
+            <div class="pl-5 text-white/60">tests/auth.rs <span class="text-white/30">(deleted)</span></div>
+            <div class="pl-5 text-white/60">Cargo.toml <span class="text-white/30">(-2)</span></div>
+            <div class="h-1.5"></div>
+            <div class="text-white">
+              Roll back? <span class="text-cyan-400">[Y/n]</span><span class="blink ml-0.5 inline-block h-3 w-1.5 align-middle bg-cyan-400"></span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <h1
-      data-reveal
-      class="max-w-5xl text-[clamp(2.6rem,7vw,6.5rem)] font-black leading-[0.98] tracking-[-0.015em] text-white"
-      style="font-family: 'Outfit', 'Inter Variable', sans-serif; font-feature-settings: 'cv11', 'ss01';"
-    >
-      git for humans.<br />
-      <code class="font-mono font-black text-cyan-400">au</code> for agents.
-    </h1>
-
-    <p data-reveal class="mt-10 max-w-3xl text-lg leading-relaxed text-white/65 sm:text-xl">
-      <span class="text-white">agent-undo</span> records every byte your AI coding agent writes,
-      attributes it to the agent that made the change, and gives you one
-      command to roll any session back. git versions your intent.
-      <code class="font-mono text-white">au</code> records the agent's.
-      <span class="text-white">They live alongside each other.</span>
-    </p>
-
-    <div data-reveal class="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-      <button
-        type="button"
-        class="copy-btn group inline-flex h-12 items-center gap-3 rounded-md border border-white/15 bg-white/[0.03] px-5 font-mono text-[14px] text-white transition-colors hover:border-white/35 hover:bg-white/[0.06]"
-        data-copy={installCmd}
-        aria-label="Copy install command"
-      >
-        <span class="text-white/40">$</span>
-        <span>{installCmd}</span>
-        <svg class="copy-icon h-4 w-4 text-white/40 transition-colors group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-        </svg>
-        <svg class="check-icon hidden h-4 w-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      </button>
-      <a
-        href={githubUrl}
-        rel="noopener"
-        class="inline-flex h-12 items-center gap-2 rounded-md border border-white/15 px-5 text-[14px] font-medium text-white transition-colors hover:border-white/35 hover:bg-white/5"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-        </svg>
-        View on GitHub
-      </a>
-    </div>
-
-    <p data-reveal class="mt-10 max-w-2xl text-sm text-white/45">
-      3.9 MB binary &middot; zero telemetry &middot; macOS + Linux &middot; Apache-2.0 &middot;
-      <a href={`${githubUrl}/releases/latest`} rel="noopener" class="text-white/65 hover:text-white">latest release</a>
-    </p>
   </div>
 </section>
