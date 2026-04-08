@@ -165,11 +165,89 @@ fn help_contains_all_commands() {
     assert_eq!(code, 0);
     for cmd in [
         "init", "status", "serve", "log", "sessions", "diff", "show", "restore", "oops", "pin",
-        "blame", "tui", "exec", "session", "hook", "gc",
+        "blame", "tui", "exec", "wrap", "session", "hook", "gc",
     ] {
         assert!(out.contains(cmd), "help output missing `{cmd}`:\n{out}");
     }
     fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn wrap_shellenv_points_at_project_wrapper_bin_dir() {
+    let dir = unique_tmp_dir("wrap_shellenv");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["wrap", "shellenv"]);
+    assert_eq!(code, 0, "wrap shellenv failed: {err}");
+    assert!(
+        out.contains(".agent-undo/bin"),
+        "shellenv should mention wrapper bin dir: {out}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn wrap_install_creates_working_terminal_agent_wrapper() {
+    let dir = unique_tmp_dir("wrap_install");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let fake_bin = unique_tmp_dir("wrap_install_fakebin");
+    let fake_codex = fake_bin.join("codex");
+    fs::write(
+        &fake_codex,
+        "#!/usr/bin/env sh\nprintf 'wrapped:%s' \"$*\" > wrapper-output.txt\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&fake_codex).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&fake_codex, perms).unwrap();
+    }
+
+    let (install_code, install_out, install_err) = run(
+        &dir,
+        &["wrap", "install", "--agent", "codex", "--binary", "codex"],
+    );
+    assert_eq!(
+        install_code, 0,
+        "wrap install failed: {install_out}{install_err}"
+    );
+
+    let wrapper = dir.join(".agent-undo/bin/codex");
+    assert!(wrapper.exists(), "wrapper should be created");
+
+    let path = format!(
+        "{}:{}:{}",
+        dir.join(".agent-undo/bin").display(),
+        fake_bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let output = Command::new(&wrapper)
+        .arg("run")
+        .arg("hello")
+        .current_dir(&dir)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code().unwrap_or(-1), 0);
+    assert_eq!(
+        fs::read_to_string(dir.join("wrapper-output.txt")).unwrap(),
+        "wrapped:run hello"
+    );
+
+    let (_, sessions, _) = run(&dir, &["sessions"]);
+    assert!(
+        sessions.contains("codex"),
+        "wrapper usage should record a codex session: {sessions}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&fake_bin).ok();
 }
 
 #[test]

@@ -24,6 +24,7 @@ mod restore;
 mod session;
 mod store;
 mod tui;
+mod wrappers;
 
 use anyhow::Result;
 use chrono::{Local, TimeZone};
@@ -152,6 +153,10 @@ enum Command {
         command: Vec<String>,
     },
 
+    /// Create project-local wrappers for terminal agents and print shell PATH setup.
+    #[command(subcommand)]
+    Wrap(WrapperCmd),
+
     /// Session lifecycle (used by shims).
     #[command(subcommand)]
     Session(SessionCmd),
@@ -187,6 +192,21 @@ enum SessionCmd {
 enum HookCmd {
     Pre,
     Post,
+}
+
+#[derive(Subcommand)]
+enum WrapperCmd {
+    /// Install a project-local wrapper binary into .agent-undo/bin/
+    Install {
+        #[arg(long)]
+        agent: String,
+        #[arg(long)]
+        binary: Option<String>,
+        #[arg(long)]
+        force: bool,
+    },
+    /// Print the shell line that prepends .agent-undo/bin to PATH.
+    Shellenv,
 }
 
 #[tokio::main]
@@ -239,6 +259,12 @@ async fn main() -> Result<()> {
             label,
             command,
         } => cmd_exec(agent, label, command),
+        Command::Wrap(WrapperCmd::Install {
+            agent,
+            binary,
+            force,
+        }) => cmd_wrap_install(agent, binary, force),
+        Command::Wrap(WrapperCmd::Shellenv) => cmd_wrap_shellenv(),
         Command::Session(SessionCmd::Start { agent, metadata }) => {
             cmd_session_start(agent, metadata)
         }
@@ -886,6 +912,25 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
         }
         Err(e) => Err(e.into()),
     }
+}
+
+fn cmd_wrap_install(agent: String, binary: Option<String>, force: bool) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let au_bin = std::env::current_exe()?;
+    let binary = binary.unwrap_or_else(|| agent.clone());
+    let wrapper_path = wrappers::install_wrapper(&paths, &au_bin, &agent, &binary, force)?;
+
+    println!("installed wrapper: {}", wrapper_path.display());
+    println!("next:");
+    println!("  eval \"$(au wrap shellenv)\"");
+    println!("  {} --help", binary);
+    Ok(())
+}
+
+fn cmd_wrap_shellenv() -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    println!("{}", wrappers::shellenv(&paths));
+    Ok(())
 }
 
 fn cmd_session_start(agent: String, metadata: Option<String>) -> Result<()> {
