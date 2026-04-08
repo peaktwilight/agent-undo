@@ -859,6 +859,80 @@ fn doctor_fix_recreates_missing_config_and_cleans_stale_pidfile() {
 }
 
 #[test]
+fn doctor_reports_detected_terminal_agent_binaries_on_path() {
+    let dir = unique_tmp_dir("doctor_detects_wrappers");
+    fs::write(dir.join("a.txt"), "hi").unwrap();
+    run(&dir, &["init"]);
+
+    let fake_bin = unique_tmp_dir("doctor_detects_wrappers_fakebin");
+    let fake_codex = fake_bin.join("codex");
+    fs::write(&fake_codex, "#!/usr/bin/env sh\nexit 0\n").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&fake_codex).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&fake_codex, perms).unwrap();
+    }
+
+    let path = format!(
+        "{}:{}",
+        fake_bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let output = Command::new(bin_path())
+        .args(["doctor"])
+        .current_dir(&dir)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code().unwrap_or(-1), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("detected terminal-agent CLI(s) on PATH: codex"));
+    assert!(stdout.contains("wrappers missing for: codex"));
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&fake_bin).ok();
+}
+
+#[test]
+fn doctor_fix_installs_missing_wrappers_for_detected_binaries() {
+    let dir = unique_tmp_dir("doctor_fix_wrappers");
+    fs::write(dir.join("a.txt"), "hi").unwrap();
+    run(&dir, &["init"]);
+
+    let fake_bin = unique_tmp_dir("doctor_fix_wrappers_fakebin");
+    let fake_codex = fake_bin.join("codex");
+    fs::write(&fake_codex, "#!/usr/bin/env sh\nexit 0\n").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&fake_codex).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&fake_codex, perms).unwrap();
+    }
+
+    let path = format!(
+        "{}:{}",
+        fake_bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let output = Command::new(bin_path())
+        .args(["doctor", "--fix"])
+        .current_dir(&dir)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code().unwrap_or(-1), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("fixed: installed wrapper(s) for codex"));
+    assert!(dir.join(".agent-undo/bin/codex").exists());
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&fake_bin).ok();
+}
+
+#[test]
 fn gc_uses_configured_keep_last_window() {
     let dir = unique_tmp_dir("gc_config");
     fs::write(dir.join("seed.txt"), "x").unwrap();

@@ -647,6 +647,47 @@ fn cmd_doctor(fix: bool) -> Result<()> {
         println!("  → use `au wrap install --agent codex` then `eval \"$(au wrap shellenv)\"`");
     }
 
+    let detected_wrappers = wrappers::detect_presets_in_path();
+    if !detected_wrappers.is_empty() {
+        let installed = wrappers::installed_wrapper_names(&paths).unwrap_or_default();
+        let missing: Vec<_> = detected_wrappers
+            .iter()
+            .copied()
+            .filter(|preset| !installed.contains(preset.binary))
+            .collect();
+
+        let detected_list = detected_wrappers
+            .iter()
+            .map(|preset| preset.name)
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("✓ detected terminal-agent CLI(s) on PATH: {detected_list}");
+
+        if missing.is_empty() {
+            println!("  all detected CLIs already have project-local wrappers");
+        } else if fix {
+            let au_bin = std::env::current_exe()?;
+            for preset in &missing {
+                let _ =
+                    wrappers::install_wrapper(&paths, &au_bin, preset.agent, preset.binary, false)?;
+            }
+            let installed_list = missing
+                .iter()
+                .map(|preset| preset.binary)
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!("  fixed: installed wrapper(s) for {installed_list}");
+        } else {
+            let missing_list = missing
+                .iter()
+                .map(|preset| preset.binary)
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!("  → wrappers missing for: {missing_list}");
+            println!("  → run `au wrap auto` or `au doctor --fix` to install them");
+        }
+    }
+
     // 4. Daemon status.
     let pidfile = paths.data_dir.join("daemon.pid");
     let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();

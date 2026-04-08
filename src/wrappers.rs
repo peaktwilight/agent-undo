@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use crate::paths::ProjectPaths;
@@ -106,6 +107,16 @@ pub fn list_wrappers(paths: &ProjectPaths) -> Result<Vec<PathBuf>> {
     }
     out.sort();
     Ok(out)
+}
+
+pub fn installed_wrapper_names(paths: &ProjectPaths) -> Result<BTreeSet<String>> {
+    let mut names = BTreeSet::new();
+    for path in list_wrappers(paths)? {
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            let _ = names.insert(name.to_string());
+        }
+    }
+    Ok(names)
 }
 
 pub fn remove_wrapper(paths: &ProjectPaths, binary: &str) -> Result<bool> {
