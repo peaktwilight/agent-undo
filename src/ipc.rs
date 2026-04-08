@@ -70,6 +70,10 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
     if paths.socket_path.exists() {
         let _ = std::fs::remove_file(&paths.socket_path);
     }
+    let _ = std::fs::write(
+        &paths.socket_info_path,
+        paths.socket_path.display().to_string(),
+    );
 
     let listener = UnixListener::bind(&paths.socket_path)
         .with_context(|| format!("binding {}", paths.socket_path.display()))?;
@@ -96,6 +100,7 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
 
     Ok(SocketGuard {
         path: paths.socket_path,
+        info_path: paths.socket_info_path,
         stop,
         handle: Some(handle),
     })
@@ -161,6 +166,7 @@ fn write_error_response(stream: &mut std::os::unix::net::UnixStream, message: &s
 #[cfg(unix)]
 pub struct SocketGuard {
     path: std::path::PathBuf,
+    info_path: std::path::PathBuf,
     stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
     handle: Option<std::thread::JoinHandle<()>>,
 }
@@ -177,6 +183,7 @@ impl Drop for SocketGuard {
             let _ = handle.join();
         }
         let _ = std::fs::remove_file(&self.path);
+        let _ = std::fs::remove_file(&self.info_path);
     }
 }
 
@@ -200,6 +207,20 @@ mod tests {
         let pid = std::process::id();
         let dir = std::env::temp_dir().join(format!("agent-undo-ipc-unit-{label}-{pid}-{ns}"));
         fs::create_dir_all(&dir).expect("create tmp dir");
+        dir
+    }
+
+    fn unique_long_tmp_dir(label: &str) -> PathBuf {
+        let ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
+        let long = format!(
+            "agent-undo-ipc-unit-{label}-{pid}-{ns}-with-a-very-long-directory-name-to-force-unix-socket-fallback-paths"
+        );
+        let dir = std::env::temp_dir().join(long);
+        fs::create_dir_all(&dir).expect("create long tmp dir");
         dir
     }
 
@@ -267,6 +288,27 @@ mod tests {
                 .expect("read active session after end")
                 .is_none(),
             "active session should be cleared"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn socket_server_creates_fallback_socket_for_long_paths() {
+        let dir = unique_long_tmp_dir("fallback");
+        let paths = ProjectPaths::for_root(dir.clone());
+        assert!(
+            paths.socket_path != paths.data_dir.join("daemon.sock"),
+            "test should force fallback socket path"
+        );
+
+        let _store = Store::init(paths.clone()).expect("init store");
+        let _guard = spawn_server(paths.clone()).expect("spawn socket server");
+
+        assert!(
+            paths.socket_path.exists(),
+            "fallback socket path should exist: {}",
+            paths.socket_path.display()
         );
 
         fs::remove_dir_all(&dir).ok();

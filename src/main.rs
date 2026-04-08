@@ -360,6 +360,11 @@ fn cmd_status() -> Result<()> {
         println!("daemon:   running ({})", paths.socket_path.display());
     } else {
         println!("daemon:   unavailable");
+        if let Ok(path) = std::fs::read_to_string(&paths.socket_info_path) {
+            println!("socket:   expected at {}", path.trim());
+        } else {
+            println!("socket:   {}", paths.socket_path.display());
+        }
     }
     Ok(())
 }
@@ -564,6 +569,10 @@ fn cmd_doctor(fix: bool) -> Result<()> {
     // 4. Daemon status.
     let pidfile = paths.data_dir.join("daemon.pid");
     let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
+    let socket_hint = std::fs::read_to_string(&paths.socket_info_path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| paths.socket_path.display().to_string());
     if pidfile.exists() {
         let pid_str = std::fs::read_to_string(&pidfile).unwrap_or_default();
         let pid: u32 = pid_str.trim().parse().unwrap_or(0);
@@ -586,7 +595,7 @@ fn cmd_doctor(fix: bool) -> Result<()> {
         } else if pid > 0 && process_alive(pid) {
             println!(
                 "✓ daemon running (pid {pid}) but socket is unavailable at {}",
-                paths.socket_path.display()
+                socket_hint
             );
         } else {
             println!(
