@@ -444,6 +444,27 @@ fn cmd_stop() -> Result<()> {
         let _ = std::fs::remove_file(&pidfile);
         return Ok(());
     }
+    if let Ok(response) = ipc::send(&paths, &ipc::Request::Shutdown) {
+        match response {
+            ipc::Response::ShutdownAccepted => {
+                for _ in 0..20 {
+                    if !pidfile.exists() || !process_alive(pid) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                if !pidfile.exists() || !process_alive(pid) {
+                    println!("requested daemon shutdown over control socket");
+                    let _ = std::fs::remove_file(&paths.socket_path);
+                    return Ok(());
+                }
+            }
+            ipc::Response::Error { message } => {
+                eprintln!("daemon shutdown request failed: {message}");
+            }
+            _ => {}
+        }
+    }
     #[cfg(unix)]
     {
         let _ = std::process::Command::new("kill")

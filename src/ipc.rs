@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use crate::hook::ActiveSession;
 use crate::paths::ProjectPaths;
@@ -18,6 +20,7 @@ pub enum Request {
     SessionEnd {
         session_id: String,
     },
+    Shutdown,
     Sessions {
         limit: usize,
     },
@@ -40,6 +43,7 @@ pub enum Response {
         session_id: String,
     },
     SessionEnded,
+    ShutdownAccepted,
     Sessions {
         sessions: Vec<SessionRow>,
     },
@@ -76,10 +80,8 @@ pub fn send(paths: &ProjectPaths, request: &Request) -> Result<Response> {
 }
 
 #[cfg(unix)]
-pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
+pub fn spawn_server(paths: ProjectPaths, stop: Arc<AtomicBool>) -> Result<SocketGuard> {
     use std::os::unix::net::UnixListener;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Arc;
     use std::thread;
 
     if paths.socket_path.exists() {
@@ -93,7 +95,6 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
     let listener = UnixListener::bind(&paths.socket_path)
         .with_context(|| format!("binding {}", paths.socket_path.display()))?;
 
-    let stop = Arc::new(AtomicBool::new(false));
     let stop_thread = Arc::clone(&stop);
     let thread_paths = paths.clone();
 
@@ -103,7 +104,7 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
                 if stop_thread.load(Ordering::Relaxed) {
                     break;
                 }
-                if let Err(err) = handle_client(&thread_paths, &mut stream) {
+                if let Err(err) = handle_client(&thread_paths, &stop_thread, &mut stream) {
                     let _ =
                         write_error_response(&mut stream, &format!("daemon control error: {err}"));
                 }
@@ -122,23 +123,32 @@ pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
 }
 
 #[cfg(not(unix))]
-pub fn spawn_server(paths: ProjectPaths) -> Result<SocketGuard> {
+pub fn spawn_server(paths: ProjectPaths, stop: Arc<AtomicBool>) -> Result<SocketGuard> {
     let _ = paths;
+    let _ = stop;
     Ok(SocketGuard {})
 }
 
 #[cfg(unix)]
-fn handle_client(paths: &ProjectPaths, stream: &mut std::os::unix::net::UnixStream) -> Result<()> {
+fn handle_client(
+    paths: &ProjectPaths,
+    stop: &Arc<AtomicBool>,
+    stream: &mut std::os::unix::net::UnixStream,
+) -> Result<()> {
     let mut buf = Vec::new();
     stream.read_to_end(&mut buf)?;
     let request: Request = serde_json::from_slice(&buf)?;
-    let response = handle_request(paths, request)?;
+    let response = handle_request(paths, stop, request)?;
     let payload = serde_json::to_vec(&response)?;
     stream.write_all(&payload)?;
     Ok(())
 }
 
-fn handle_request(paths: &ProjectPaths, request: Request) -> Result<Response> {
+fn handle_request(
+    paths: &ProjectPaths,
+    stop: &Arc<AtomicBool>,
+    request: Request,
+) -> Result<Response> {
     let store = Store::open(paths.clone())?;
     match request {
         Request::Status => Ok(Response::Status {
@@ -165,6 +175,10 @@ fn handle_request(paths: &ProjectPaths, request: Request) -> Result<Response> {
         Request::SessionEnd { session_id } => {
             session::end(&store, &session_id, true)?;
             Ok(Response::SessionEnded)
+        }
+        Request::Shutdown => {
+            stop.store(true, Ordering::Relaxed);
+            Ok(Response::ShutdownAccepted)
         }
         Request::Sessions { limit } => Ok(Response::Sessions {
             sessions: store.list_sessions(limit)?,
@@ -228,6 +242,8 @@ mod tests {
     use crate::store::Store;
     use std::fs;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn unique_tmp_dir(label: &str) -> PathBuf {
@@ -277,7 +293,8 @@ mod tests {
             })
             .expect("record event");
 
-        let _guard = spawn_server(paths.clone()).expect("spawn socket server");
+        let stop = Arc::new(AtomicBool::new(false));
+        let _guard = spawn_server(paths.clone(), Arc::clone(&stop)).expect("spawn socket server");
 
         match send(&paths, &Request::Status).expect("status request") {
             Response::Status { events, .. } => assert_eq!(events, 1),
@@ -334,6 +351,15 @@ mod tests {
             other => panic!("unexpected events response: {other:?}"),
         }
 
+        match send(&paths, &Request::Shutdown).expect("shutdown request") {
+            Response::ShutdownAccepted => {}
+            other => panic!("unexpected shutdown response: {other:?}"),
+        }
+        assert!(
+            stop.load(Ordering::Relaxed),
+            "shutdown request should flip stop flag"
+        );
+
         assert!(
             crate::hook::read_active_session(&paths)
                 .expect("read active session after end")
@@ -354,7 +380,8 @@ mod tests {
         );
 
         let _store = Store::init(paths.clone()).expect("init store");
-        let _guard = spawn_server(paths.clone()).expect("spawn socket server");
+        let stop = Arc::new(AtomicBool::new(false));
+        let _guard = spawn_server(paths.clone(), stop).expect("spawn socket server");
 
         assert!(
             paths.socket_path.exists(),

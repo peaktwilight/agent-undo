@@ -5,6 +5,10 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::mpsc;
 use std::sync::mpsc::RecvTimeoutError;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{Process, ProcessRefreshKind, RefreshKind, System};
@@ -86,7 +90,8 @@ pub fn serve(store: Store) -> Result<()> {
     let config = AppConfig::load(&store.paths)?;
     let root = store.paths.root.clone();
     tracing::info!("agent-undo watching {}", root.display());
-    let socket_guard = ipc::spawn_server(store.paths.clone())?;
+    let stop = Arc::new(AtomicBool::new(false));
+    let socket_guard = ipc::spawn_server(store.paths.clone(), Arc::clone(&stop))?;
 
     let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
     let mut watcher = notify::recommended_watcher(move |res| {
@@ -96,7 +101,15 @@ pub fn serve(store: Store) -> Result<()> {
 
     let ignorer = build_ignorer(&root, &config);
 
-    while let Ok(first) = rx.recv() {
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            break;
+        }
+        let first = match rx.recv_timeout(Duration::from_millis(COALESCE_WINDOW_MS)) {
+            Ok(first) => first,
+            Err(RecvTimeoutError::Timeout) => continue,
+            Err(RecvTimeoutError::Disconnected) => break,
+        };
         let mut batch = vec![first];
         loop {
             match rx.recv_timeout(Duration::from_millis(COALESCE_WINDOW_MS)) {
