@@ -16,6 +16,7 @@ mod install;
 mod paths;
 mod restore;
 mod store;
+mod tui;
 
 use anyhow::Result;
 use chrono::{Local, TimeZone};
@@ -197,7 +198,7 @@ async fn main() -> Result<()> {
         Command::Oops { confirm } => cmd_oops(confirm),
         Command::Pin { .. } => not_impl("pin"),
         Command::Blame { file } => cmd_blame(file),
-        Command::Tui => not_impl("tui"),
+        Command::Tui => cmd_tui(),
         Command::Exec {
             agent,
             label,
@@ -406,6 +407,12 @@ fn cmd_blame(file: String) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
     blame::blame(&store, &file)
+}
+
+fn cmd_tui() -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    tui::run(&store)
 }
 
 fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Result<()> {
