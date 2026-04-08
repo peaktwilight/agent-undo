@@ -74,5 +74,5 @@ jobs:
       - run: cargo build --release --target ${{ matrix.target }}
       - name: Report binary size
         run: |
-          ls -lh target/${{ matrix.target }}/release/agent-undo
-          file target/${{ matrix.target }}/release/agent-undo
+          ls -lh target/${{ matrix.target }}/release/au
+          file target/${{ matrix.target }}/release/au
