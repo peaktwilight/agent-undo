@@ -3,6 +3,7 @@ import { getCollection } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
+import PageIntro from "../../components/ui/PageIntro.astro";
 
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime(),
@@ -11,22 +12,17 @@ const posts = (await getCollection("blog")).sort(
 
 <Layout title="agent-undo blog" description="Essays and launch notes for agent-undo.">
   <Header />
-  <main class="mx-auto min-h-[70vh] max-w-5xl px-6 py-20">
-    <div class="mb-14 max-w-2xl">
-      <p class="mb-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">Blog</p>
-      <h1 class="text-4xl font-semibold tracking-tight text-white md:text-5xl">
-        Notes on rollback, attribution, and agent-written code
-      </h1>
-      <p class="mt-5 text-base leading-8 text-white/65">
-        Essays, launch notes, and technical writeups about what changes when code is written by
-        tools that move faster than commit cadence.
-      </p>
-    </div>
+  <main class="mx-auto min-h-[70vh] max-w-7xl px-6 py-20">
+    <PageIntro
+      eyebrow="Blog"
+      title="Notes on rollback, attribution, and agent-written code"
+      description="Essays, launch notes, and technical writeups about what changes when code is written by tools that move faster than commit cadence."
+    />
 
-    <div class="space-y-6">
+    <div class="max-w-5xl space-y-6">
       {posts.map((post) => (
         <a
-          href={`/blog/${post.slug}/`}
+          href={`/blog/${post.id}/`}
           class="block rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/20 hover:bg-white/[0.05]"
         >
           <div class="mb-3 text-[12px] uppercase tracking-[0.18em] text-white/40">

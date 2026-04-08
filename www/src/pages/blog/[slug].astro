@@ -3,6 +3,7 @@ import { getCollection, render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
+import PageIntro from "../../components/ui/PageIntro.astro";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog");
@@ -18,24 +19,26 @@ const { Content } = await render(post);
 
 <Layout title={`${post.data.title} — agent-undo`} description={post.data.description}>
   <Header />
-  <main class="mx-auto min-h-[70vh] max-w-3xl px-6 py-20">
-    <a href="/blog/" class="mb-8 inline-flex text-sm text-white/55 transition-colors hover:text-white">
-      ← Back to blog
-    </a>
+  <main class="mx-auto min-h-[70vh] max-w-7xl px-6 py-20">
+    <div class="max-w-4xl">
+      <a href="/blog/" class="mb-8 inline-flex text-sm text-white/55 transition-colors hover:text-white">
+        ← Back to blog
+      </a>
+    </div>
 
-    <article>
+    <article class="max-w-4xl">
       <header class="mb-12 border-b border-white/10 pb-10">
-        <p class="mb-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">
-          {post.data.date.toLocaleDateString("en-US", {
+        <PageIntro
+          eyebrow={post.data.date.toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
             day: "numeric",
           })}
-        </p>
-        <h1 class="max-w-3xl text-4xl font-semibold tracking-tight text-white md:text-5xl">
-          {post.data.title}
-        </h1>
-        <p class="mt-5 max-w-2xl text-base leading-8 text-white/65">{post.data.description}</p>
+          title={post.data.title}
+          description={post.data.description}
+          maxW="max-w-4xl"
+          class="mb-0"
+        />
       </header>
 
       <div class="prose prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-p:text-white/80 prose-li:text-white/80 prose-strong:text-white prose-a:text-white prose-code:text-white">
