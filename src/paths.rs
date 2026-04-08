@@ -20,7 +20,7 @@ impl ProjectPaths {
     /// Walk upward from the current directory looking for an existing
     /// `.agent-undo/` directory. Errors if none is found.
     pub fn discover() -> Result<Self> {
-        let cwd = std::env::current_dir()?;
+        let cwd = normalized_cwd()?;
         let mut cur: &Path = &cwd;
         loop {
             if cur.join(".agent-undo").is_dir() {
@@ -38,7 +38,7 @@ impl ProjectPaths {
 
     /// Treat the current directory as the project root (for `init`).
     pub fn cwd_as_root() -> Result<Self> {
-        Ok(Self::for_root(std::env::current_dir()?))
+        Ok(Self::for_root(normalized_cwd()?))
     }
 
     pub fn for_root(root: PathBuf) -> Self {
@@ -46,7 +46,7 @@ impl ProjectPaths {
         let objects_dir = data_dir.join("objects");
         let db_path = data_dir.join("timeline.db");
         let config_path = data_dir.join("config.toml");
-        let socket_path = data_dir.join("daemon.sock");
+        let socket_path = control_socket_path(&data_dir);
         Self {
             root,
             data_dir,
@@ -61,5 +61,33 @@ impl ProjectPaths {
     /// directories with hundreds of thousands of entries.
     pub fn object_path(&self, hash: &str) -> PathBuf {
         self.objects_dir.join(&hash[..2]).join(&hash[2..])
+    }
+}
+
+fn control_socket_path(data_dir: &Path) -> PathBuf {
+    let direct = data_dir.join("daemon.sock");
+    #[cfg(unix)]
+    {
+        let direct_len = direct.as_os_str().to_string_lossy().len();
+        if direct_len <= 90 {
+            return direct;
+        }
+
+        let digest = blake3::hash(data_dir.to_string_lossy().as_bytes())
+            .to_hex()
+            .to_string();
+        std::env::temp_dir().join(format!("agent-undo-{}.sock", &digest[..16]))
+    }
+    #[cfg(not(unix))]
+    {
+        direct
+    }
+}
+
+fn normalized_cwd() -> Result<PathBuf> {
+    let cwd = std::env::current_dir()?;
+    match cwd.canonicalize() {
+        Ok(path) => Ok(path),
+        Err(_) => Ok(cwd),
     }
 }

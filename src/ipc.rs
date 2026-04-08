@@ -185,3 +185,93 @@ impl Drop for SocketGuard {
 
 #[cfg(not(unix))]
 pub struct SocketGuard {}
+
+#[cfg(test)]
+mod tests {
+    use super::{send, spawn_server, Request, Response};
+    use crate::paths::ProjectPaths;
+    use crate::store::Store;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_tmp_dir(label: &str) -> PathBuf {
+        let ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
+        let dir = std::env::temp_dir().join(format!("agent-undo-ipc-unit-{label}-{pid}-{ns}"));
+        fs::create_dir_all(&dir).expect("create tmp dir");
+        dir
+    }
+
+    #[test]
+    fn socket_server_handles_status_and_session_requests() {
+        let dir = unique_tmp_dir("socket");
+        let paths = ProjectPaths::for_root(dir.clone());
+        let store = Store::init(paths.clone()).expect("init store");
+        store
+            .record_event(&crate::store::NewEvent {
+                ts_ns: 1,
+                path: "f.rs".into(),
+                before_hash: None,
+                after_hash: Some("hash".into()),
+                size_before: None,
+                size_after: Some(1),
+                attribution: "initial-scan".into(),
+                confidence: "high".into(),
+                session_id: None,
+                pid: None,
+                process_name: None,
+                tool_name: None,
+            })
+            .expect("record event");
+
+        let _guard = spawn_server(paths.clone()).expect("spawn socket server");
+
+        match send(&paths, &Request::Status).expect("status request") {
+            Response::Status { events, .. } => assert_eq!(events, 1),
+            other => panic!("unexpected status response: {other:?}"),
+        }
+
+        let session_id = match send(
+            &paths,
+            &Request::SessionStart {
+                agent: "codex".into(),
+                metadata: Some(r#"{"prompt":"refactor auth","tool_name":"Write"}"#.into()),
+            },
+        )
+        .expect("session start")
+        {
+            Response::SessionStarted { session_id } => session_id,
+            other => panic!("unexpected session start response: {other:?}"),
+        };
+
+        let active = crate::hook::read_active_session(&paths)
+            .expect("read active session")
+            .expect("active session exists");
+        assert_eq!(active.agent, "codex");
+
+        match send(
+            &paths,
+            &Request::SessionEnd {
+                session_id: session_id.clone(),
+            },
+        )
+        .expect("session end")
+        {
+            Response::SessionEnded => {}
+            other => panic!("unexpected session end response: {other:?}"),
+        }
+
+        assert!(
+            crate::hook::read_active_session(&paths)
+                .expect("read active session after end")
+                .is_none(),
+            "active session should be cleared"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+}

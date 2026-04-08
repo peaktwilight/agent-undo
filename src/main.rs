@@ -374,9 +374,10 @@ fn cmd_serve(detach: bool) -> Result<()> {
     // Foreground mode: write pidfile so `stop` can find us, clean up on exit.
     let pidfile = paths.data_dir.join("daemon.pid");
     let _ = std::fs::write(&pidfile, std::process::id().to_string());
-    let _socket = ipc::spawn_server(paths.clone())?;
+    let socket_guard = ipc::spawn_server(paths.clone())?;
     let store = Store::open(paths)?;
     let result = daemon::serve(store);
+    drop(socket_guard);
     let _ = std::fs::remove_file(&pidfile);
     result
 }
@@ -566,7 +567,11 @@ fn cmd_doctor(fix: bool) -> Result<()> {
     if pidfile.exists() {
         let pid_str = std::fs::read_to_string(&pidfile).unwrap_or_default();
         let pid: u32 = pid_str.trim().parse().unwrap_or(0);
-        if let Some(ipc::Response::Status { events, active_session }) = &socket_status {
+        if let Some(ipc::Response::Status {
+            events,
+            active_session,
+        }) = &socket_status
+        {
             println!(
                 "✓ daemon running (pid {pid}, {} events, socket {})",
                 events,
