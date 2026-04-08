@@ -12,6 +12,7 @@ pub struct ProjectPaths {
     pub data_dir: PathBuf,
     pub objects_dir: PathBuf,
     pub db_path: PathBuf,
+    pub config_path: PathBuf,
 }
 
 impl ProjectPaths {
@@ -43,11 +44,13 @@ impl ProjectPaths {
         let data_dir = root.join(".agent-undo");
         let objects_dir = data_dir.join("objects");
         let db_path = data_dir.join("timeline.db");
+        let config_path = data_dir.join("config.toml");
         Self {
             root,
             data_dir,
             objects_dir,
             db_path,
+            config_path,
         }
     }
 

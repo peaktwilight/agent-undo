@@ -1,0 +1,78 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+const demos = [
+  {
+    title: "oops after a 5-file Claude rampage",
+    status: "Recording pending",
+    blurb: "The hero clip: Claude wrecks multiple files, `au oops` restores the session, tests go green.",
+    script: `cd demo-project
+au init --install-hooks
+au serve --daemon
+# let Claude edit 5 files
+au oops`,
+  },
+  {
+    title: "oops apocalypse",
+    status: "Recording pending",
+    blurb: "Longer launch cut showing a real unattended agent run and a full rollback back to t=0.",
+    script: `# real codebase, real session
+au sessions
+au diff --session <id>
+au oops`,
+  },
+  {
+    title: "au blame",
+    status: "Screenshot pending",
+    blurb: "The moat feature: one file, mixed human and agent edits, attribution line by line.",
+    script: `au blame src/auth.rs`,
+  },
+  {
+    title: "au tui",
+    status: "Recording pending",
+    blurb: "Interactive timeline scrubber for sessions, event diffs, and restore bookkeeping.",
+    script: `au tui`,
+  },
+];
+---
+
+<Layout title="agent-undo demos" description="Planned launch demos and walkthroughs for agent-undo.">
+  <Header />
+  <main class="mx-auto min-h-[70vh] max-w-6xl px-6 py-20">
+    <div class="mb-14 max-w-3xl">
+      <p class="mb-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">Demos</p>
+      <h1 class="text-4xl font-semibold tracking-tight text-white md:text-5xl">Launch demo gallery</h1>
+      <p class="mt-5 text-base leading-8 text-white/65">
+        The route is live now; the final GIFs and screenshots drop in as they are recorded. The
+        goal is one gallery page that can hold the hero clip, the attribution screenshot, and
+        later community-contributed showcases.
+      </p>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+      {demos.map((demo) => (
+        <section class="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <div class="mb-5 flex items-center justify-between gap-4">
+            <h2 class="text-2xl font-semibold tracking-tight text-white">{demo.title}</h2>
+            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+              {demo.status}
+            </span>
+          </div>
+          <p class="mb-5 text-sm leading-7 text-white/65">{demo.blurb}</p>
+          <pre class="overflow-x-auto rounded-2xl border border-white/10 bg-[#0a0a0a] px-5 py-4 text-sm text-white/85"><code>{demo.script}</code></pre>
+        </section>
+      ))}
+    </div>
+
+    <section class="mt-12 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+      <h2 class="text-2xl font-semibold tracking-tight text-white">Community slot</h2>
+      <p class="mt-4 max-w-3xl text-sm leading-7 text-white/65">
+        Once the launch assets exist, this page can grow into a small showcase for pull requests
+        that add new recovery scenarios, benchmark clips, or attribution walkthroughs.
+      </p>
+    </section>
+  </main>
+  <Footer />
+</Layout>

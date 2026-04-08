@@ -4,18 +4,17 @@ use notify::{EventKind, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::mpsc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use sysinfo::{Process, ProcessRefreshKind, RefreshKind, System};
 
+use crate::config::AppConfig;
 use crate::hook::{read_active_session, ActiveSession};
 use crate::store::{NewEvent, Store};
-
-/// Files larger than this are skipped entirely. Mostly to avoid snapshotting
-/// build artifacts or media assets. Configurable in v0.2.
-const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
 
 /// Walk the project tree and snapshot every file into the CAS, recording each
 /// as an `initial-scan` event. Called once from `agent-undo init` so that
 /// subsequent FS events have a coherent "before" state to reference.
 pub fn initial_scan(store: &Store) -> Result<usize> {
+    let config = AppConfig::load(&store.paths)?;
     let root = store.paths.root.clone();
     let ts_ns = now_ns();
     let mut count = 0;
@@ -41,7 +40,7 @@ pub fn initial_scan(store: &Store) -> Result<usize> {
             Ok(m) => m,
             Err(_) => continue,
         };
-        if meta.len() > MAX_FILE_SIZE {
+        if meta.len() > config.max_file_size_bytes() {
             continue;
         }
         let (hash, bytes) = match Store::hash_file(path) {
@@ -78,6 +77,7 @@ pub fn initial_scan(store: &Store) -> Result<usize> {
 /// v0 is foreground-only and synchronous. Real daemonization (unix socket,
 /// launchd/systemd integration) is a v0.2 task.
 pub fn serve(store: Store) -> Result<()> {
+    let config = AppConfig::load(&store.paths)?;
     let root = store.paths.root.clone();
     tracing::info!("agent-undo watching {}", root.display());
 
@@ -87,12 +87,12 @@ pub fn serve(store: Store) -> Result<()> {
     })?;
     watcher.watch(&root, RecursiveMode::Recursive)?;
 
-    let ignorer = build_ignorer(&root);
+    let ignorer = build_ignorer(&root, &config);
 
     while let Ok(res) = rx.recv() {
         match res {
             Ok(event) => {
-                if let Err(e) = handle_event(&store, &ignorer, event) {
+                if let Err(e) = handle_event(&store, &ignorer, &config, event) {
                     tracing::warn!("handle_event error: {:?}", e);
                 }
             }
@@ -102,7 +102,12 @@ pub fn serve(store: Store) -> Result<()> {
     Ok(())
 }
 
-fn handle_event(store: &Store, ignorer: &Gitignore, event: notify::Event) -> Result<()> {
+fn handle_event(
+    store: &Store,
+    ignorer: &Gitignore,
+    config: &AppConfig,
+    event: notify::Event,
+) -> Result<()> {
     let relevant = matches!(
         event.kind,
         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
@@ -115,14 +120,14 @@ fn handle_event(store: &Store, ignorer: &Gitignore, event: notify::Event) -> Res
         if should_skip(ignorer, &path) {
             continue;
         }
-        if let Err(e) = process_path(store, &path) {
+        if let Err(e) = process_path(store, &path, config) {
             tracing::warn!("process_path {}: {:?}", path.display(), e);
         }
     }
     Ok(())
 }
 
-fn process_path(store: &Store, path: &Path) -> Result<()> {
+fn process_path(store: &Store, path: &Path, config: &AppConfig) -> Result<()> {
     let rel = relative_path(&store.paths.root, path);
     let ts_ns = now_ns();
 
@@ -154,7 +159,7 @@ fn process_path(store: &Store, path: &Path) -> Result<()> {
     if meta.is_dir() {
         return Ok(());
     }
-    if meta.len() > MAX_FILE_SIZE {
+    if meta.len() > config.max_file_size_bytes() {
         return Ok(());
     }
 
@@ -181,8 +186,8 @@ fn process_path(store: &Store, path: &Path) -> Result<()> {
         attribution: attribution.agent,
         confidence: attribution.confidence,
         session_id: attribution.session_id,
-        pid: None,
-        process_name: None,
+        pid: attribution.pid,
+        process_name: attribution.process_name,
         tool_name: attribution.tool_name,
     })?;
     store.upsert_file_state(&rel, &hash, size, ts_ns)?;
@@ -196,6 +201,8 @@ struct Attribution {
     confidence: String,
     session_id: Option<String>,
     tool_name: Option<String>,
+    pid: Option<i64>,
+    process_name: Option<String>,
 }
 
 /// Resolve the "who wrote this file" answer by checking (in order):
@@ -207,11 +214,16 @@ fn resolve_attribution(store: &Store) -> Attribution {
     if let Ok(Some(active)) = read_active_session(&store.paths) {
         return from_active(&active);
     }
+    if let Some(attribution) = heuristic_attribution(&store.paths.root) {
+        return attribution;
+    }
     Attribution {
         agent: "unknown".into(),
         confidence: "none".into(),
         session_id: None,
         tool_name: None,
+        pid: None,
+        process_name: None,
     }
 }
 
@@ -221,7 +233,87 @@ fn from_active(active: &ActiveSession) -> Attribution {
         confidence: "high".into(),
         session_id: Some(active.session_id.clone()),
         tool_name: active.tool_name.clone(),
+        pid: None,
+        process_name: None,
     }
+}
+
+fn heuristic_attribution(root: &Path) -> Option<Attribution> {
+    let system = System::new_with_specifics(
+        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+    );
+    let self_pid = std::process::id();
+    let mut best: Option<(u8, Attribution)> = None;
+
+    for process in system.processes().values() {
+        let pid = process.pid().as_u32();
+        if pid == self_pid {
+            continue;
+        }
+        let Some(cwd) = process.cwd() else {
+            continue;
+        };
+        if !cwd.starts_with(root) {
+            continue;
+        }
+        let Some((agent, score)) = fingerprint_process(process) else {
+            continue;
+        };
+        let attribution = Attribution {
+            agent: agent.into(),
+            confidence: if score >= 30 { "medium" } else { "low" }.into(),
+            session_id: None,
+            tool_name: None,
+            pid: Some(pid as i64),
+            process_name: Some(process.name().to_string()),
+        };
+        if best
+            .as_ref()
+            .map(|(best_score, _)| score > *best_score)
+            .unwrap_or(true)
+        {
+            best = Some((score, attribution));
+        }
+    }
+
+    best.map(|(_, attribution)| attribution)
+}
+
+fn fingerprint_process(process: &Process) -> Option<(&'static str, u8)> {
+    let name = process.name().to_ascii_lowercase();
+    if name == "au" || name.contains("agent-undo") {
+        return None;
+    }
+
+    let exe = process
+        .exe()
+        .and_then(|path| path.file_name())
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let cmd = process.cmd().join(" ").to_ascii_lowercase();
+    let haystack = format!("{name} {exe} {cmd}");
+
+    if haystack.contains("cursor") {
+        return Some(("cursor", 40));
+    }
+    if haystack.contains("claude") {
+        return Some(("claude-code", 40));
+    }
+    if haystack.contains("aider") {
+        return Some(("aider", 35));
+    }
+    if haystack.contains("codex") {
+        return Some(("codex", 35));
+    }
+    if haystack.contains("cline") || haystack.contains("roo") {
+        return Some(("cline", 30));
+    }
+    if haystack.contains("continue") {
+        return Some(("continue", 30));
+    }
+
+    None
 }
 
 fn should_skip(ignorer: &Gitignore, path: &Path) -> bool {
@@ -237,7 +329,7 @@ fn should_skip(ignorer: &Gitignore, path: &Path) -> bool {
     ignorer.matched(path, is_dir).is_ignore()
 }
 
-fn build_ignorer(root: &Path) -> Gitignore {
+fn build_ignorer(root: &Path, config: &AppConfig) -> Gitignore {
     let mut builder = GitignoreBuilder::new(root);
     // User gitignore wins first.
     let _ = builder.add(root.join(".gitignore"));
@@ -252,6 +344,9 @@ fn build_ignorer(root: &Path) -> Gitignore {
         "build/",
         ".DS_Store",
     ] {
+        let _ = builder.add_line(None, pat);
+    }
+    for pat in &config.watch.ignore_patterns {
         let _ = builder.add_line(None, pat);
     }
     builder.build().unwrap_or_else(|_| Gitignore::empty())
@@ -269,4 +364,24 @@ fn now_ns() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fingerprint_process;
+    use sysinfo::{ProcessRefreshKind, RefreshKind, System};
+
+    #[test]
+    fn fingerprint_tolerates_real_process_handles() {
+        let system = System::new_with_specifics(
+            RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+        );
+        let current = system
+            .processes()
+            .values()
+            .find(|process| process.pid().as_u32() == std::process::id())
+            .expect("current process present");
+
+        let _ = fingerprint_process(current);
+    }
 }

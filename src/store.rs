@@ -508,7 +508,12 @@ impl Store {
         }
         let _ = pin_event_ids; // currently informational; reserved for v0.3 strict mode
 
-        // Sweep orphan blobs: any object on disk that no live event references.
+        let blobs_deleted = self.sweep_orphan_blobs()?;
+
+        Ok((events_deleted, blobs_deleted))
+    }
+
+    pub fn sweep_orphan_blobs(&self) -> Result<usize> {
         let referenced: std::collections::HashSet<String> = self
             .conn
             .prepare(
@@ -549,7 +554,7 @@ impl Store {
             }
         }
 
-        Ok((events_deleted, blobs_deleted))
+        Ok(blobs_deleted)
     }
 
     pub fn event_count(&self) -> Result<i64> {

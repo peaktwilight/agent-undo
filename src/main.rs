@@ -14,11 +14,13 @@
 // `.agent-undo/` so anyone walking past a colleague's screen knows what it is.
 
 mod blame;
+mod config;
 mod daemon;
 mod hook;
 mod install;
 mod paths;
 mod restore;
+mod session;
 mod store;
 mod tui;
 
@@ -53,6 +55,10 @@ enum Command {
         #[arg(long)]
         install_hooks: bool,
 
+        /// Remove agent-undo's Claude Code hooks, leaving other hooks intact.
+        #[arg(long)]
+        uninstall_hooks: bool,
+
         /// Skip initial project scan (fast init).
         #[arg(long)]
         no_scan: bool,
@@ -79,6 +85,8 @@ enum Command {
         file: Option<String>,
         #[arg(long)]
         since: Option<String>,
+        #[arg(long)]
+        json: bool,
         #[arg(short = 'n', long, default_value_t = 50)]
         limit: usize,
     },
@@ -118,7 +126,11 @@ enum Command {
     },
 
     /// Pin the current state so it's never garbage collected.
-    Pin { label: String },
+    Pin {
+        label: Option<String>,
+        #[arg(long)]
+        list: bool,
+    },
 
     /// Restore the project to a previously pinned state.
     Unpin { label: String },
@@ -151,7 +163,10 @@ enum Command {
     Gc,
 
     /// Diagnose the project's agent-undo setup.
-    Doctor,
+    Doctor {
+        #[arg(long)]
+        fix: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -188,8 +203,9 @@ async fn main() -> Result<()> {
     match cli.command {
         Command::Init {
             install_hooks,
+            uninstall_hooks,
             no_scan,
-        } => cmd_init(install_hooks, no_scan),
+        } => cmd_init(install_hooks, uninstall_hooks, no_scan),
         Command::Status => cmd_status(),
         Command::Serve { daemon } => cmd_serve(daemon),
         Command::Stop => cmd_stop(),
@@ -197,8 +213,9 @@ async fn main() -> Result<()> {
             agent,
             file,
             since,
+            json,
             limit,
-        } => cmd_log(agent, file, since, limit),
+        } => cmd_log(agent, file, since, json, limit),
         Command::Sessions => cmd_sessions(),
         Command::Diff { event_id, session } => cmd_diff(event_id, session),
         Command::Show {
@@ -212,7 +229,7 @@ async fn main() -> Result<()> {
             session,
         } => cmd_restore(event_id, file, session),
         Command::Oops { confirm } => cmd_oops(confirm),
-        Command::Pin { label } => cmd_pin(label),
+        Command::Pin { label, list } => cmd_pin(label, list),
         Command::Unpin { label } => cmd_unpin(label),
         Command::Blame { file } => cmd_blame(file),
         Command::Tui => cmd_tui(),
@@ -221,28 +238,34 @@ async fn main() -> Result<()> {
             label,
             command,
         } => cmd_exec(agent, label, command),
-        Command::Session(_) => not_impl("session"),
+        Command::Session(SessionCmd::Start { agent, metadata }) => {
+            cmd_session_start(agent, metadata)
+        }
+        Command::Session(SessionCmd::End { session_id }) => cmd_session_end(session_id),
         Command::Hook(HookCmd::Pre) => hook::handle_pre(),
         Command::Hook(HookCmd::Post) => hook::handle_post(),
         Command::Gc => cmd_gc(),
-        Command::Doctor => cmd_doctor(),
+        Command::Doctor { fix } => cmd_doctor(fix),
     }
-}
-
-fn not_impl(name: &str) -> Result<()> {
-    println!("agent-undo {name}: not yet implemented");
-    Ok(())
 }
 
 // --- commands --------------------------------------------------------------
 
-fn cmd_init(install_hooks: bool, no_scan: bool) -> Result<()> {
+fn cmd_init(install_hooks: bool, uninstall_hooks: bool, no_scan: bool) -> Result<()> {
+    if install_hooks && uninstall_hooks {
+        anyhow::bail!("choose only one of --install-hooks or --uninstall-hooks");
+    }
+
     let paths = ProjectPaths::cwd_as_root()?;
     let fresh = !paths.data_dir.exists();
 
     if fresh {
         println!("Initializing agent-undo at {}", paths.root.display());
         let store = Store::init(paths.clone())?;
+        let wrote_config = config::AppConfig::write_default_if_missing(&paths)?;
+        if wrote_config {
+            println!("  wrote {}", paths.config_path.display());
+        }
 
         if !no_scan {
             println!("Scanning project files...");
@@ -274,6 +297,27 @@ fn cmd_init(install_hooks: bool, no_scan: bool) -> Result<()> {
                 eprintln!();
                 eprintln!("⚠ could not install Claude Code hooks: {e}");
                 eprintln!("  init still succeeded — attribution will fall back to 'unknown'.");
+            }
+        }
+    }
+
+    if uninstall_hooks {
+        match install::uninstall_claude_hooks() {
+            Ok(removed) if removed > 0 => {
+                println!();
+                if removed == 1 {
+                    println!("✓ removed 1 Claude Code hook entry from your settings");
+                } else {
+                    println!("✓ removed {removed} Claude Code hook entries from your settings");
+                }
+            }
+            Ok(_) => {
+                println!();
+                println!("✓ no agent-undo Claude Code hooks were installed");
+            }
+            Err(e) => {
+                eprintln!();
+                eprintln!("⚠ could not uninstall Claude Code hooks: {e}");
             }
         }
     }
@@ -439,7 +483,7 @@ fn parse_since(s: &str) -> Result<i64> {
     Ok(n * mult)
 }
 
-fn cmd_doctor() -> Result<()> {
+fn cmd_doctor(fix: bool) -> Result<()> {
     println!("agent-undo doctor");
     println!("=================");
     println!();
@@ -470,6 +514,32 @@ fn cmd_doctor() -> Result<()> {
         }
     };
 
+    // 2b. Config file.
+    match config::AppConfig::load(&paths) {
+        Ok(cfg) => {
+            if paths.config_path.exists() {
+                println!(
+                    "✓ config loaded from {} (gc.keep_last={}, watch.max_file_size_mb={})",
+                    paths.config_path.display(),
+                    cfg.gc.keep_last,
+                    cfg.watch.max_file_size_mb,
+                );
+            } else if fix {
+                config::AppConfig::write_default_if_missing(&paths)?;
+                println!("✓ wrote default config to {}", paths.config_path.display());
+            } else {
+                println!("⚠ config missing at {}", paths.config_path.display());
+                println!("  → run `au doctor --fix` to create a default config");
+            }
+        }
+        Err(e) => {
+            println!(
+                "✗ could not parse config at {}: {e}",
+                paths.config_path.display()
+            );
+        }
+    }
+
     // 3. Object store on disk.
     let blob_count = count_blobs(&paths.objects_dir);
     println!(
@@ -489,7 +559,12 @@ fn cmd_doctor() -> Result<()> {
                 "⚠ stale pidfile at {} (pid {pid} not alive)",
                 pidfile.display()
             );
-            println!("  → run `au stop` to clean up, then `au serve --daemon`");
+            if fix {
+                let _ = std::fs::remove_file(&pidfile);
+                println!("  fixed: removed stale pidfile");
+            } else {
+                println!("  → run `au stop` to clean up, then `au serve --daemon`");
+            }
         }
     } else {
         println!("⚠ daemon not running");
@@ -514,7 +589,14 @@ fn cmd_doctor() -> Result<()> {
                 println!("✓ Claude Code hooks installed in {}", settings.display());
             } else {
                 println!("⚠ Claude Code settings.json exists but no agent-undo hook found");
-                println!("  → run `au init --install-hooks` to add them");
+                if fix {
+                    match install::install_claude_hooks() {
+                        Ok(_) => println!("  fixed: installed agent-undo Claude hooks"),
+                        Err(e) => println!("  fix failed: {e}"),
+                    }
+                } else {
+                    println!("  → run `au init --install-hooks` to add them");
+                }
             }
         } else {
             println!(
@@ -523,6 +605,11 @@ fn cmd_doctor() -> Result<()> {
             );
             println!("  → if you use Claude Code, run `au init --install-hooks`");
         }
+    }
+
+    if fix {
+        let removed = store.sweep_orphan_blobs()?;
+        println!("✓ orphan blob sweep complete ({removed} removed)");
     }
 
     // 7. Sessions summary.
@@ -542,7 +629,11 @@ fn cmd_doctor() -> Result<()> {
     }
 
     println!();
-    println!("everything looks healthy. try `au log` to see what's happening.");
+    if fix {
+        println!("repair pass complete. try `au log` to see what's happening.");
+    } else {
+        println!("everything looks healthy. try `au log` to see what's happening.");
+    }
     Ok(())
 }
 
@@ -560,9 +651,33 @@ fn count_blobs(objects_dir: &std::path::Path) -> usize {
     count
 }
 
-fn cmd_pin(label: String) -> Result<()> {
+fn cmd_pin(label: Option<String>, list: bool) -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
+
+    if list {
+        if label.is_some() {
+            anyhow::bail!("use `au pin --list` or `au pin <label>`, not both");
+        }
+        let pins = store.list_pins()?;
+        if pins.is_empty() {
+            println!("no pins yet.");
+            return Ok(());
+        }
+        for pin in pins {
+            let when = Local
+                .timestamp_nanos(pin.created_at_ns)
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string();
+            println!(
+                "#{:<5} {}  event={}  {}",
+                pin.id, when, pin.event_id, pin.label
+            );
+        }
+        return Ok(());
+    }
+
+    let label = label.ok_or_else(|| anyhow::anyhow!("usage: au pin <label>  OR  au pin --list"))?;
     let id = store.create_pin(&label)?;
     println!("pinned current state as #{id}: {label}");
     Ok(())
@@ -591,12 +706,15 @@ fn cmd_unpin(label: String) -> Result<()> {
 }
 
 fn cmd_gc() -> Result<()> {
-    // Default policy: keep last 7 days of events.
-    const SEVEN_DAYS_NS: i64 = 7 * 24 * 60 * 60 * 1_000_000_000;
     let paths = ProjectPaths::discover()?;
+    let config = config::AppConfig::load(&paths)?;
     let store = Store::open(paths)?;
-    let (events, blobs) = store.gc(SEVEN_DAYS_NS)?;
-    println!("gc: removed {events} event(s) and {blobs} blob(s) older than 7 days");
+    let keep_last_ns = config.gc_keep_last_ns()?;
+    let (events, blobs) = store.gc(keep_last_ns)?;
+    println!(
+        "gc: removed {events} event(s) and {blobs} blob(s) older than {}",
+        config.gc.keep_last
+    );
     println!("    (pinned events and the latest event per file are always preserved)");
     Ok(())
 }
@@ -615,7 +733,6 @@ fn cmd_tui() -> Result<()> {
 
 fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Result<()> {
     use std::process::Command as Proc;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     if command.is_empty() {
         anyhow::bail!("usage: agent-undo exec --agent <name> -- <command...>");
@@ -623,33 +740,18 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
 
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths.clone())?;
-    let ts_ns = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as i64)
-        .unwrap_or(0);
-    let session_id = format!("exec-{}", uuid::Uuid::new_v4().simple());
-
-    // Start the session record.
-    store.upsert_session(&store::SessionRow {
-        id: session_id.clone(),
-        agent: agent.clone(),
-        started_at_ns: ts_ns,
-        ended_at_ns: None,
-        prompt: label.clone(),
-        model: None,
-        metadata: Some(serde_json::json!({ "command": command }).to_string()),
-    })?;
-
-    // Write active-session marker so the watcher attributes child writes.
-    hook::write_active_session(
-        &paths,
-        Some(&hook::ActiveSession {
-            session_id: session_id.clone(),
+    let session_id = session::start(
+        &store,
+        session::SessionStart {
+            session_id: Some(format!("exec-{}", uuid::Uuid::new_v4().simple())),
             agent: agent.clone(),
-            started_at_ns: ts_ns,
+            prompt: label.clone(),
+            model: None,
+            metadata: Some(serde_json::json!({ "command": command }).to_string()),
             tool_name: None,
             intended_file: None,
-        }),
+            activate: true,
+        },
     )?;
 
     println!(
@@ -664,12 +766,7 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
     let status = Proc::new(cmd).args(args).status();
 
     // Always clean up, even on error.
-    let _ = hook::write_active_session(&paths, None);
-    let end_ns = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as i64)
-        .unwrap_or(0);
-    let _ = store.mark_session_ended(&session_id, end_ns);
+    let _ = session::end(&store, &session_id, true);
 
     match status {
         Ok(s) if s.success() => {
@@ -682,6 +779,35 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
         }
         Err(e) => Err(e.into()),
     }
+}
+
+fn cmd_session_start(agent: String, metadata: Option<String>) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    let parsed = session::parse_metadata(metadata.as_deref())?;
+    let session_id = session::start(
+        &store,
+        session::SessionStart {
+            session_id: parsed.session_id,
+            agent,
+            prompt: parsed.prompt,
+            model: parsed.model,
+            metadata: parsed.raw,
+            tool_name: parsed.tool_name,
+            intended_file: parsed.intended_file,
+            activate: true,
+        },
+    )?;
+    println!("{session_id}");
+    Ok(())
+}
+
+fn cmd_session_end(session_id: String) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    session::end(&store, &session_id, true)?;
+    println!("closed session {}", &session_id[..session_id.len().min(16)]);
+    Ok(())
 }
 
 fn cmd_sessions() -> Result<()> {
@@ -856,6 +982,7 @@ fn cmd_log(
     agent: Option<String>,
     file: Option<String>,
     since: Option<String>,
+    json: bool,
     limit: usize,
 ) -> Result<()> {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -878,7 +1005,39 @@ fn cmd_log(
     let events = store.filtered_events(agent.as_deref(), file.as_deref(), abs_since, limit)?;
 
     if events.is_empty() {
+        if json {
+            println!("[]");
+            return Ok(());
+        }
         println!("no events yet. run `agent-undo serve` and edit a file.");
+        return Ok(());
+    }
+
+    if json {
+        let payload: Vec<serde_json::Value> = events
+            .iter()
+            .rev()
+            .map(|e| {
+                let kind = match (&e.before_hash, &e.after_hash) {
+                    (None, Some(_)) => "create",
+                    (Some(_), Some(_)) => "modify",
+                    (Some(_), None) => "delete",
+                    (None, None) => "unknown",
+                };
+                serde_json::json!({
+                    "id": e.id,
+                    "ts_ns": e.ts_ns,
+                    "timestamp": Local.timestamp_nanos(e.ts_ns).to_rfc3339(),
+                    "kind": kind,
+                    "path": e.path,
+                    "attribution": e.attribution,
+                    "session_id": e.session_id,
+                    "before_hash": e.before_hash,
+                    "after_hash": e.after_hash,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&payload)?);
         return Ok(());
     }
 

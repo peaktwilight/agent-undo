@@ -1,0 +1,81 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+const install = [
+  "curl -fsSL https://agent-undo.com/install.sh | sh",
+  "cargo install agent-undo",
+];
+
+const commands = [
+  ["au init [--install-hooks|--uninstall-hooks] [--no-scan]", "Initialize `.agent-undo/`, write default config, and optionally manage Claude hooks."],
+  ["au serve --daemon", "Start the filesystem watcher in the background for the current project."],
+  ["au stop", "Stop the project daemon by pidfile."],
+  ["au status", "Show root, data directory, database path, and event count."],
+  ["au log [--agent X] [--file Y] [--since 1h] [--json]", "Inspect the event timeline in human or machine-readable form."],
+  ["au sessions", "List recent recorded agent sessions."],
+  ["au session start --agent X [--metadata '{...}']", "Open an explicit agent session and mark subsequent writes."],
+  ["au session end <id>", "Close an explicit session and clear the active marker."],
+  ["au diff <event-id> | au diff --session <id>", "Show a unified diff for an event or full session."],
+  ["au show <event-id> [--before|--after]", "Print stored file contents for one side of an event."],
+  ["au restore <event-id> | --file <path> | --session <id>", "Restore a single event, a file’s last change, or an explicit session."],
+  ["au oops", "Undo the latest explicit session when present, otherwise the latest recent burst."],
+  ["au pin <label> | au pin --list", "Create and inspect named restore points."],
+  ["au unpin <label>", "Restore the whole project to a named pin’s state."],
+  ["au blame <file>", "Show per-line attribution from the timeline, similar to `git blame`."],
+  ["au tui", "Browse the timeline interactively with a two-pane event/diff view."],
+  ["au exec --agent X -- <command...>", "Wrap a command in an explicit session without an editor integration."],
+  ["au gc", "Garbage-collect old events and orphaned blobs using `.agent-undo/config.toml`."],
+  ["au doctor [--fix]", "Diagnose local setup and optionally repair common issues."],
+];
+---
+
+<Layout title="agent-undo docs" description="Command reference and operating notes for agent-undo.">
+  <Header />
+  <main class="mx-auto min-h-[70vh] max-w-5xl px-6 py-20">
+    <div class="mb-14 max-w-3xl">
+      <p class="mb-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">Docs</p>
+      <h1 class="text-4xl font-semibold tracking-tight text-white md:text-5xl">Command reference</h1>
+      <p class="mt-5 text-base leading-8 text-white/65">
+        `agent-undo` is intentionally small: one project-local watcher, one SQLite timeline, and a
+        handful of commands for rollback, attribution, and inspection.
+      </p>
+    </div>
+
+    <section class="mb-16">
+      <h2 class="mb-5 text-xl font-semibold tracking-tight text-white">Install</h2>
+      <div class="space-y-4">
+        {install.map((cmd) => (
+          <pre class="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm text-white/85"><code>{cmd}</code></pre>
+        ))}
+      </div>
+    </section>
+
+    <section class="mb-16">
+      <h2 class="mb-5 text-xl font-semibold tracking-tight text-white">Quick start</h2>
+      <pre class="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-white/85"><code>{`cd my-project
+au init --install-hooks
+au serve --daemon
+
+# ...let your agent work...
+
+au log
+au sessions
+au oops`}</code></pre>
+    </section>
+
+    <section>
+      <h2 class="mb-5 text-xl font-semibold tracking-tight text-white">Commands</h2>
+      <div class="space-y-4">
+        {commands.map(([cmd, desc]) => (
+          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <code class="block text-[13px] text-white">{cmd}</code>
+            <p class="mt-3 text-sm leading-7 text-white/65">{desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  </main>
+  <Footer />
+</Layout>

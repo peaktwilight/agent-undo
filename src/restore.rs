@@ -211,6 +211,19 @@ pub fn oops_plan(store: &Store, window_ns: i64) -> Result<Vec<(String, EventRow)
         return Ok(vec![]);
     }
 
+    if let Some(session_id) = undoable[0].session_id.as_deref() {
+        let session_events = store.events_for_session(session_id)?;
+        if !session_events.is_empty() {
+            let mut earliest_per_file: HashMap<String, EventRow> = HashMap::new();
+            for ev in session_events {
+                earliest_per_file.entry(ev.path.clone()).or_insert(ev);
+            }
+            let mut planned: Vec<(String, EventRow)> = earliest_per_file.into_iter().collect();
+            planned.sort_by(|a, b| a.0.cmp(&b.0));
+            return Ok(planned);
+        }
+    }
+
     let most_recent_ts = undoable[0].ts_ns;
     let cutoff = most_recent_ts - window_ns;
 
@@ -308,5 +321,71 @@ fn read_blob_as_text(store: &Store, hash: Option<&str>) -> Result<String> {
             Ok(String::from_utf8_lossy(&bytes).into_owned())
         }
         None => Ok(String::new()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::oops_plan;
+    use crate::paths::ProjectPaths;
+    use crate::store::{NewEvent, Store};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_tmp_dir(label: &str) -> PathBuf {
+        let ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
+        let dir = std::env::temp_dir().join(format!("agent-undo-restore-unit-{label}-{pid}-{ns}"));
+        fs::create_dir_all(&dir).expect("create tmp dir");
+        dir
+    }
+
+    #[test]
+    fn oops_plan_prefers_full_explicit_session_over_time_window() {
+        let dir = unique_tmp_dir("oops_session");
+        let store = Store::init(ProjectPaths::for_root(dir.clone())).expect("init store");
+
+        store
+            .record_event(&NewEvent {
+                ts_ns: 100,
+                path: "a.txt".into(),
+                before_hash: None,
+                after_hash: Some("hash-a".into()),
+                size_before: None,
+                size_after: Some(1),
+                attribution: "test-agent".into(),
+                confidence: "high".into(),
+                session_id: Some("session-1".into()),
+                pid: None,
+                process_name: None,
+                tool_name: None,
+            })
+            .expect("record first event");
+        store
+            .record_event(&NewEvent {
+                ts_ns: 200,
+                path: "b.txt".into(),
+                before_hash: None,
+                after_hash: Some("hash-b".into()),
+                size_before: None,
+                size_after: Some(1),
+                attribution: "test-agent".into(),
+                confidence: "high".into(),
+                session_id: Some("session-1".into()),
+                pid: None,
+                process_name: None,
+                tool_name: None,
+            })
+            .expect("record second event");
+
+        let plan = oops_plan(&store, 1).expect("build oops plan");
+        let paths: Vec<String> = plan.into_iter().map(|(path, _)| path).collect();
+        assert_eq!(paths, vec!["a.txt".to_string(), "b.txt".to_string()]);
+
+        fs::remove_dir_all(&dir).ok();
     }
 }

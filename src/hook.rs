@@ -19,10 +19,10 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::paths::ProjectPaths;
-use crate::store::{SessionRow, Store};
+use crate::session;
+use crate::store::Store;
 
 /// JSON Claude Code writes to stdin for hook commands.
 #[derive(Debug, Clone, Deserialize)]
@@ -75,29 +75,20 @@ fn run_pre(input: ClaudeHookInput) -> Result<()> {
         return Ok(());
     };
 
-    let store = Store::open(paths.clone())?;
-    let ts = now_ns();
-
-    // Persist the session in SQLite so it survives daemon restarts.
-    store.upsert_session(&SessionRow {
-        id: input.session_id.clone(),
-        agent: "claude-code".into(),
-        started_at_ns: ts,
-        ended_at_ns: None,
-        prompt: None,
-        model: None,
-        metadata: Some(serde_json::json!({ "tool": input.tool_name }).to_string()),
-    })?;
-
-    // Write the active-session marker the watcher reads.
-    let active = ActiveSession {
-        session_id: input.session_id.clone(),
-        agent: "claude-code".into(),
-        started_at_ns: ts,
-        tool_name: Some(input.tool_name.clone()),
-        intended_file: input.file_path(),
-    };
-    write_active_session(&paths, Some(&active))?;
+    let store = Store::open(paths)?;
+    session::start(
+        &store,
+        session::SessionStart {
+            session_id: Some(input.session_id.clone()),
+            agent: "claude-code".into(),
+            prompt: None,
+            model: None,
+            metadata: Some(serde_json::json!({ "tool": input.tool_name }).to_string()),
+            tool_name: Some(input.tool_name.clone()),
+            intended_file: input.file_path(),
+            activate: true,
+        },
+    )?;
     Ok(())
 }
 
@@ -106,17 +97,8 @@ fn run_post(input: ClaudeHookInput) -> Result<()> {
     let Some(paths) = paths else {
         return Ok(());
     };
-    let store = Store::open(paths.clone())?;
-    let ts = now_ns();
-    store.mark_session_ended(&input.session_id, ts)?;
-
-    // Only clear the marker if it still points at this session — don't race
-    // with a later pre-hook that already installed a newer session.
-    if let Some(current) = read_active_session(&paths)? {
-        if current.session_id == input.session_id {
-            write_active_session(&paths, None)?;
-        }
-    }
+    let store = Store::open(paths)?;
+    session::end(&store, &input.session_id, true)?;
     Ok(())
 }
 
@@ -167,11 +149,4 @@ fn read_stdin_json() -> Result<ClaudeHookInput> {
     let parsed: ClaudeHookInput =
         serde_json::from_str(&buf).context("parsing Claude Code hook JSON")?;
     Ok(parsed)
-}
-
-fn now_ns() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as i64)
-        .unwrap_or(0)
 }

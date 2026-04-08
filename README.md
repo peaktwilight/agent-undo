@@ -70,16 +70,18 @@ au serve --daemon             # background watcher
 # ... work normally with Claude Code / Cursor / Cline / Aider / Codex ...
 
 au log                        # see every file event, attributed
+au log --json                 # scriptable timeline output
 au sessions                   # list recent agent sessions
+au pin --list                 # inspect saved restore points
 au oops                       # undo the last burst of agent edits
-au doctor                     # diagnose project setup
+au doctor --fix               # diagnose + repair common local issues
 ```
 
 ## How it works
 
 1. **Watch.** A `notify-rs` filesystem watcher sees every write in the project tree. `.gitignore` and `.agent-undoignore` are respected.
 2. **Snapshot.** Each changed file is hashed with BLAKE3 and written into a content-addressable object store under `.agent-undo/objects/`. Identical content dedupes automatically.
-3. **Attribute.** Before an agent writes, its hook (`au hook pre`) drops a small JSON marker identifying the active session. The watcher reads the marker on each event and tags the resulting timeline entry with the agent, session id, and tool name.
+3. **Attribute.** Before an agent writes, its hook (`au hook pre`) or session shim (`au session start`) drops a small active-session marker. The watcher reads that marker on each event and tags the resulting timeline entry with the agent, session id, and tool name. If no explicit session is active, `au` falls back to a best-effort local process fingerprint.
 4. **Recover.** Every event lives in a SQLite timeline at `.agent-undo/timeline.db`. `restore`, `oops`, `diff`, `blame`, and `show` are all queries and inverse operations over that table. Every restore snapshots the current state first — you can never lose data by undoing.
 
 No cloud. No account. No telemetry. One binary. One SQLite file. Your code never leaves the machine.
@@ -96,9 +98,9 @@ Longer essay: [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
 ## Status
 
-`v0.0.x` — pre-alpha. The core pipeline works end-to-end. 17/17 integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS.
+`v0.0.x` — pre-alpha. The core pipeline works end-to-end. 23/23 integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS.
 
-Coming next: Cursor / Cline / Aider hook integrations, Homebrew tap, `install.sh` endpoint.
+Coming next: first-class Cursor / Cline / Aider integrations, richer daemon control, and launch/distribution polish.
 
 ## License
 

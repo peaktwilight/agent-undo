@@ -58,6 +58,7 @@ fn init_creates_data_dir_and_scans_files() {
     assert!(dir.join(".agent-undo").is_dir());
     assert!(dir.join(".agent-undo/timeline.db").is_file());
     assert!(dir.join(".agent-undo/objects").is_dir());
+    assert!(dir.join(".agent-undo/config.toml").is_file());
 
     // Re-running init is idempotent (prints "already initialized").
     let (code2, out2, _) = run(&dir, &["init"]);
@@ -172,6 +173,62 @@ fn help_contains_all_commands() {
 }
 
 #[test]
+fn session_start_and_end_manage_active_session_marker() {
+    let dir = unique_tmp_dir("session_lifecycle");
+    fs::write(dir.join("f.rs"), "original").unwrap();
+    run(&dir, &["init"]);
+
+    let start = Command::new(bin_path())
+        .args([
+            "session",
+            "start",
+            "--agent",
+            "cursor",
+            "--metadata",
+            r#"{"prompt":"refactor auth","tool_name":"Edit","file_path":"src/auth.rs"}"#,
+        ])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert_eq!(start.status.code().unwrap_or(-1), 0);
+    let session_id = String::from_utf8_lossy(&start.stdout).trim().to_string();
+    assert!(
+        session_id.starts_with("session-"),
+        "unexpected session id: {session_id}"
+    );
+
+    let active = dir.join(".agent-undo/active-session.json");
+    assert!(
+        active.exists(),
+        "session start should create active-session.json"
+    );
+    let parsed: serde_json::Value = serde_json::from_slice(&fs::read(&active).unwrap()).unwrap();
+    assert_eq!(parsed["session_id"], session_id);
+    assert_eq!(parsed["agent"], "cursor");
+    assert_eq!(parsed["tool_name"], "Edit");
+    assert_eq!(parsed["intended_file"], "src/auth.rs");
+
+    let end = Command::new(bin_path())
+        .args(["session", "end", &session_id])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert_eq!(end.status.code().unwrap_or(-1), 0);
+    assert!(
+        !active.exists(),
+        "session end should clear active-session.json"
+    );
+
+    let (_, sessions, _) = run(&dir, &["sessions"]);
+    assert!(
+        sessions.contains("cursor"),
+        "sessions list missing cursor entry: {sessions}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn restore_by_event_id_recovers_prior_content() {
     let dir = unique_tmp_dir("restore_by_id");
     let original = "original line 1\noriginal line 2\n";
@@ -257,6 +314,43 @@ fn init_install_hooks_flag_compiles_and_accepts_args() {
     let content2 = fs::read_to_string(&settings).unwrap();
     let count = content2.matches("au hook pre").count();
     assert_eq!(count, 1, "hooks should be idempotent, got {count} copies");
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&fake_home).ok();
+}
+
+#[test]
+fn init_uninstall_hooks_removes_only_agent_undo_entries() {
+    let dir = unique_tmp_dir("uninstall_hooks_flag");
+    fs::write(dir.join("x.txt"), "x").unwrap();
+    let fake_home = unique_tmp_dir("fake_home_uninstall");
+
+    let install = Command::new(bin_path())
+        .args(["init", "--install-hooks"])
+        .current_dir(&dir)
+        .env("HOME", &fake_home)
+        .output()
+        .unwrap();
+    assert_eq!(install.status.code().unwrap_or(-1), 0);
+
+    let settings = fake_home.join(".claude/settings.json");
+    assert!(
+        settings.exists(),
+        "settings.json should exist after install"
+    );
+
+    let uninstall = Command::new(bin_path())
+        .args(["init", "--uninstall-hooks"])
+        .current_dir(&dir)
+        .env("HOME", &fake_home)
+        .output()
+        .unwrap();
+    assert_eq!(uninstall.status.code().unwrap_or(-1), 0);
+
+    let content = fs::read_to_string(&settings).unwrap();
+    assert!(!content.contains("agent-undo-managed"));
+    assert!(!content.contains("au hook pre"));
+    assert!(!content.contains("au hook post"));
 
     fs::remove_dir_all(&dir).ok();
     fs::remove_dir_all(&fake_home).ok();
@@ -412,6 +506,28 @@ fn log_filters_by_agent_path_and_since() {
 }
 
 #[test]
+fn log_json_outputs_machine_readable_events() {
+    let dir = unique_tmp_dir("log_json");
+    fs::write(dir.join("alpha.txt"), "a").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["log", "--json"]);
+    assert_eq!(code, 0, "log --json failed: {err}");
+    let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let events = parsed
+        .as_array()
+        .expect("log --json should return an array");
+    assert!(
+        !events.is_empty(),
+        "log --json should include initial scan events"
+    );
+    assert_eq!(events[0]["path"], "alpha.txt");
+    assert_eq!(events[0]["attribution"], "initial-scan");
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn unpin_restores_project_to_pinned_state() {
     use std::io::Write;
     let dir = unique_tmp_dir("unpin");
@@ -447,6 +563,23 @@ fn unpin_restores_project_to_pinned_state() {
 }
 
 #[test]
+fn pin_list_shows_existing_pins() {
+    let dir = unique_tmp_dir("pin_list");
+    fs::write(dir.join("file.rs"), "v1").unwrap();
+    run(&dir, &["init"]);
+    run(&dir, &["pin", "before-refactor"]);
+
+    let (code, out, err) = run(&dir, &["pin", "--list"]);
+    assert_eq!(code, 0, "pin --list failed: {err}");
+    assert!(
+        out.contains("before-refactor"),
+        "pin list missing label: {out}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn doctor_reports_status_correctly() {
     let dir = unique_tmp_dir("doctor");
     fs::write(dir.join("a.txt"), "hi").unwrap();
@@ -475,6 +608,73 @@ fn doctor_reports_status_correctly() {
     assert!(
         out.contains("daemon not running"),
         "should flag missing daemon: {out}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn doctor_fix_recreates_missing_config_and_cleans_stale_pidfile() {
+    let dir = unique_tmp_dir("doctor_fix");
+    fs::write(dir.join("a.txt"), "hi").unwrap();
+    run(&dir, &["init"]);
+
+    let config_path = dir.join(".agent-undo/config.toml");
+    fs::remove_file(&config_path).unwrap();
+    let pidfile = dir.join(".agent-undo/daemon.pid");
+    fs::write(&pidfile, "999999").unwrap();
+
+    let (code, out, err) = run(&dir, &["doctor", "--fix"]);
+    assert_eq!(code, 0, "doctor --fix failed: {err}");
+    assert!(
+        out.contains("wrote default config"),
+        "missing config fix: {out}"
+    );
+    assert!(
+        out.contains("removed stale pidfile"),
+        "missing pidfile fix: {out}"
+    );
+    assert!(
+        config_path.exists(),
+        "doctor --fix should recreate config.toml"
+    );
+    assert!(
+        !pidfile.exists(),
+        "doctor --fix should remove stale pidfile"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn gc_uses_configured_keep_last_window() {
+    let dir = unique_tmp_dir("gc_config");
+    fs::write(dir.join("seed.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, _) = run(&dir, &["serve", "--daemon"]);
+    assert_eq!(code, 0, "serve --daemon failed: {out}");
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    fs::write(dir.join("seed.txt"), "y").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(800));
+    let _ = run(&dir, &["stop"]);
+
+    fs::write(
+        dir.join(".agent-undo/config.toml"),
+        "[gc]\nkeep_last = \"0s\"\n\n[watch]\nmax_file_size_mb = 100\nignore_patterns = []\n",
+    )
+    .unwrap();
+
+    let (gc_code, gc_out, gc_err) = run(&dir, &["gc"]);
+    assert_eq!(gc_code, 0, "gc failed: {gc_err}");
+    assert!(
+        gc_out.contains("older than 0s"),
+        "unexpected gc output: {gc_out}"
+    );
+    assert!(
+        !gc_out.contains("removed 0 event"),
+        "gc should respect config and remove an older event: {gc_out}"
     );
 
     fs::remove_dir_all(&dir).ok();
