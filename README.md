@@ -2,7 +2,7 @@
 
 *Local-first rollback for AI coding agents. A single binary that snapshots every file your agent writes and lets you undo any session with one command.*
 
-*agent-undo side-steps editor checkpoints, IDE history, and after-the-fact `git reflog` archaeology — all of which silently fail when the agent has been given write access to the filesystem and acted faster than your save loop.*
+*agent-undo side-steps editor checkpoints, IDE history, and after-the-fact `git reflog` recovery — all of which silently fail when the agent has been given write access to the filesystem and acted faster than your save loop.*
 
 ```sh
 curl -fsSL https://agent-undo.com/install.sh | sh

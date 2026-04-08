@@ -18,7 +18,7 @@ That model presupposes a human, working at human speed, who knows what they want
 2. **Not human speed.** A 5-minute Claude session can produce 200 file writes. A user could not commit fast enough to capture them all even if they tried.
 3. **Not knowing what to keep.** Agents change things you didn't ask for. By the time you notice, the deliberate-act commit window has long since passed.
 
-The industry's response so far is to pretend nothing has changed: aggressive `git commit -am "wip"` discipline, hope, and prayer. When it breaks, scrape `~/.claude` session logs like an archaeologist. This is inadequate.
+The industry's response so far is to pretend nothing has changed: aggressive `git commit -am "wip"` discipline, hope, and prayer. When it breaks, people dig through `~/.claude` session logs and try to reconstruct what happened. This is inadequate.
 
 **agent-undo proposes a parallel category.** Not a replacement for git, not a competitor, not a wrapper. A *complement*:
 
@@ -45,7 +45,7 @@ That assumption has silently broken. In 2026, a huge share of code — often a m
 
 Every tool in your engineering stack — git, your editor, your CI, your review process — was designed under the assumption that a human is typing the keys. None of them are designed for a collaborator that writes 400 lines in 8 seconds while you stare at the screen trying to read fast enough.
 
-**The industry's current response** is to pretend nothing has changed. Accept-all in Cursor. `git commit -am "claude edits"` every few minutes. Pray. When it breaks, scrape `~/.claude` session logs like an archaeologist.
+**The industry's current response** is to pretend nothing has changed. Accept-all in Cursor. `git commit -am "claude edits"` every few minutes. Pray. When it breaks, dig through `~/.claude` session logs and try to piece the session back together.
 
 **agent-undo's position**: that response is inadequate and the right answer is to build the missing primitives. Agents need:
 

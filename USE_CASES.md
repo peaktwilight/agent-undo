@@ -143,7 +143,7 @@ Pretext's README does not match the energy of its tweet. Ours shouldn't either.
 >
 > *Local-first rollback for AI coding agents. A single 5MB binary that snapshots every file your agent writes and lets you undo any session with one command.*
 >
-> *agent-undo side-steps the need for editor checkpoints, IDE history, or after-the-fact `git reflog` archaeology, all of which silently fail when the agent has been given write access to the filesystem and acted faster than your save loop.*
+> *agent-undo side-steps the need for editor checkpoints, IDE history, or after-the-fact `git reflog` recovery, all of which silently fail when the agent has been given write access to the filesystem and acted faster than your save loop.*
 
 This mirrors pretext's two-paragraph structure:
 
@@ -323,7 +323,7 @@ Read top-to-bottom in one minute. Modeled on pretext's README rhythm.
 > with one command.
 
 agent-undo side-steps the need for editor checkpoints, IDE history, or
-after-the-fact `git reflog` archaeology — all of which silently fail when
+after-the-fact `git reflog` recovery — all of which silently fail when
 the agent has been given write access to the filesystem and acted faster
 than your save loop.
 
