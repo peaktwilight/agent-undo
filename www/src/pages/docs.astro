@@ -27,6 +27,8 @@ const commands = [
   ["au blame <file>", "Show per-line attribution from the timeline, similar to `git blame`."],
   ["au tui", "Browse the timeline interactively with a two-pane event/diff view."],
   ["au exec --agent X -- <command...>", "Wrap a command in an explicit session without an editor integration."],
+  ["au wrap install --agent X [--binary Y]", "Create a project-local wrapper in `.agent-undo/bin/` for a terminal agent CLI."],
+  ["au wrap shellenv", "Print the shell line that prepends `.agent-undo/bin/` to PATH."],
   ["au gc", "Garbage-collect old events and orphaned blobs using `.agent-undo/config.toml`."],
   ["au doctor [--fix]", "Diagnose local setup and optionally repair common issues."],
 ];
@@ -46,7 +48,8 @@ const commands = [
       <p class="max-w-3xl text-sm leading-7 text-white/65">
         The tool is meant for local coding-agent workflows in terminals and editors: Codex, Claude
         Code, Cursor, Cline, Aider, and anything else you can either hook directly or wrap with
-        <code> au exec --agent ... </code>. The happy path is broader than one vendor.
+        <code> au exec --agent ... </code> or <code>au wrap install --agent ...</code>. The happy
+        path is broader than one vendor.
       </p>
     </section>
 
@@ -68,8 +71,10 @@ au serve --daemon
 # optional: add built-in Claude Code hooks
 au init --install-hooks
 
-# optional: wrap any CLI agent immediately
-au exec --agent codex -- codex run "..."
+# optional: install a local wrapper for a terminal agent
+au wrap install --agent codex
+eval "$(au wrap shellenv)"
+codex run "..."
 
 au log
 au sessions

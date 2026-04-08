@@ -45,6 +45,7 @@ and the last burst of agent edits is rolled back, atomically, across every file 
 2. **Audit what an agent actually changed.** `au log --agent claude-code --since 1h` and `au diff --session <id>`.
 3. **Per-line agent attribution.** `au blame <file>` — like `git blame`, but tells you which agent (or human) wrote each line.
 4. **Pin a known-good state before letting an agent loose.** `au pin "before refactor"` then `au unpin "before refactor"` later to restore.
+5. **Wrap terminal agents without changing how you invoke them.** `au wrap install --agent codex` then `eval "$(au wrap shellenv)"`.
 
 ## Install
 
@@ -81,11 +82,19 @@ au oops                       # undo the last burst of agent edits
 au doctor --fix               # diagnose + repair common local issues
 ```
 
+For terminal-first agents without hook support:
+
+```sh
+au wrap install --agent codex
+eval "$(au wrap shellenv)"
+codex run "..."
+```
+
 ## How it works
 
 1. **Watch.** A `notify-rs` filesystem watcher sees every write in the project tree. `.gitignore` and `.agent-undoignore` are respected.
 2. **Snapshot.** Each changed file is hashed with BLAKE3 and written into a content-addressable object store under `.agent-undo/objects/`. Identical content dedupes automatically.
-3. **Attribute.** Before an agent writes, its hook (`au hook pre`) or session shim (`au session start`) drops a small active-session marker. The watcher reads that marker on each event and tags the resulting timeline entry with the agent, session id, and tool name. If no explicit session is active, `au` falls back to a best-effort local process fingerprint.
+3. **Attribute.** Before an agent writes, its hook (`au hook pre`), session shim (`au session start`), or project-local wrapper (`au wrap install --agent ...`) drops a small active-session marker. The watcher reads that marker on each event and tags the resulting timeline entry with the agent, session id, and tool name. If no explicit session is active, `au` falls back to a best-effort local process fingerprint.
 4. **Recover.** Every event lives in a SQLite timeline at `.agent-undo/timeline.db`. `restore`, `oops`, `diff`, `blame`, and `show` are all queries and inverse operations over that table. Every restore snapshots the current state first — you can never lose data by undoing.
 
 No cloud. No account. No telemetry. One binary. One SQLite file. Your code never leaves the machine.
@@ -104,7 +113,7 @@ Longer essay: [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
 `v0.0.x` — pre-alpha. The core pipeline works end-to-end. 23/23 integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS.
 
-Coming next: first-class Cursor / Cline / Aider integrations, richer daemon control, and launch/distribution polish.
+Coming next: first-class editor integrations, richer daemon control, and launch/distribution polish.
 
 ## License
 
