@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/github-banner.svg" alt="agent-undo banner" width="100%">
+</p>
+
 # agent-undo (`au`)
 
 *Local-first rollback for AI coding agents. A single binary that snapshots every file your agent writes and lets you undo any session with one command.*
@@ -54,7 +58,7 @@ Or from source:
 cargo install agent-undo
 ```
 
-Or from the latest GitHub release: macOS (arm64, x64), Linux (x64, arm64) — single 4 MB binary, no runtime.
+Or from the latest GitHub release: macOS (arm64, x64), Linux (x64, arm64) — single ~5 MB binary, no runtime.
 
 After install you'll have `au` on your PATH.
 
