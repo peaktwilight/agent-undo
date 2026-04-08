@@ -7,6 +7,8 @@
 # Detects OS + arch, downloads the matching release binary from GitHub, and
 # drops it into ~/.local/bin (or $AGENT_UNDO_INSTALL_DIR if set). Creates
 # the directory if needed and prints a PATH hint if it isn't already on PATH.
+#
+# Override the version by setting AGENT_UNDO_VERSION=v0.x.y.
 
 set -eu
 
@@ -17,7 +19,10 @@ INSTALL_DIR="${AGENT_UNDO_INSTALL_DIR:-$HOME/.local/bin}"
 
 err()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 info() { printf '\033[36m::\033[0m %s\n' "$*"; }
-ok()   { printf '\033[32m✓\033[0m %s\n' "$*"; }
+ok()   { printf '\033[32mok\033[0m %s\n' "$*"; }
+
+command -v curl >/dev/null 2>&1 || err "curl is required but not installed"
+command -v tar  >/dev/null 2>&1 || err "tar is required but not installed"
 
 # --- detect platform ----------------------------------------------------------
 OS="$(uname -s)"
@@ -49,13 +54,14 @@ if [ -z "$TAG" ]; then
       | sed 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/'
   )" || err "could not determine latest release. Set AGENT_UNDO_VERSION=v0.x.y to override."
   if [ -z "$TAG" ]; then
-    err "no releases yet at https://github.com/$REPO/releases. \
-Use \`cargo install agent-undo\` for now."
+    err "no releases yet at https://github.com/$REPO/releases. Use \`cargo install agent-undo\` for now."
   fi
 fi
 info "installing $TAG"
 
 # --- download tarball --------------------------------------------------------
+# Release assets are named like: agent-undo-v0.0.3-x86_64-apple-darwin.tar.gz
+# (see .github/workflows/release.yml — packaged as "agent-undo-${TAG}-${target}")
 TARBALL="${CRATE_NAME}-${TAG}-${TARGET}.tar.gz"
 URL="https://github.com/$REPO/releases/download/$TAG/$TARBALL"
 TMP="$(mktemp -d)"
@@ -63,24 +69,29 @@ trap 'rm -rf "$TMP"' EXIT
 
 info "downloading $URL"
 if ! curl -fsSL "$URL" -o "$TMP/$TARBALL"; then
-  err "download failed. Check that the release exists for $TARGET."
+  err "download failed. Check that a release asset exists for $TARGET at
+    https://github.com/$REPO/releases/tag/$TAG"
 fi
 
 info "extracting"
 tar -xzf "$TMP/$TARBALL" -C "$TMP"
 
-if [ ! -f "$TMP/$BIN_NAME" ]; then
-  # Some release pipelines nest the binary in a subdirectory.
-  FOUND="$(find "$TMP" -name "$BIN_NAME" -type f | head -n 1)"
-  [ -n "$FOUND" ] || err "binary $BIN_NAME not found in tarball"
-  mv "$FOUND" "$TMP/$BIN_NAME"
+# The tarball nests the binary inside a stage dir (e.g. agent-undo-v0.0.3-<target>/au).
+BIN_PATH="$(find "$TMP" -name "$BIN_NAME" -type f -perm -u+x 2>/dev/null | head -n 1)"
+if [ -z "$BIN_PATH" ]; then
+  BIN_PATH="$(find "$TMP" -name "$BIN_NAME" -type f | head -n 1)"
 fi
+[ -n "$BIN_PATH" ] || err "binary '$BIN_NAME' not found in tarball"
 
-chmod +x "$TMP/$BIN_NAME"
+chmod +x "$BIN_PATH"
 
 # --- install -----------------------------------------------------------------
 mkdir -p "$INSTALL_DIR"
-mv "$TMP/$BIN_NAME" "$INSTALL_DIR/$BIN_NAME"
+# mv across filesystems can fail; fall back to cp.
+if ! mv -f "$BIN_PATH" "$INSTALL_DIR/$BIN_NAME" 2>/dev/null; then
+  cp -f "$BIN_PATH" "$INSTALL_DIR/$BIN_NAME"
+fi
+chmod +x "$INSTALL_DIR/$BIN_NAME"
 ok "installed $BIN_NAME to $INSTALL_DIR/$BIN_NAME"
 
 # --- PATH hint ---------------------------------------------------------------
