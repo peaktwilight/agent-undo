@@ -29,7 +29,7 @@ Every AI coding agent today writes to your filesystem the same way you would: di
 
 `au` is that log.
 
-It runs as a small background daemon per project, snapshotting every file write into a content-addressable store (BLAKE3 hashes, zstd blobs, SQLite timeline). Every edit is attributed to the agent that made it — Claude Code, Cursor, Cline, Aider, Codex, or you — via a small hook that each of them can call. Nothing ever leaves your machine.
+It runs as a small background daemon per project, snapshotting every file write into a content-addressable store (BLAKE3 hashes, zstd blobs, SQLite timeline). Every edit is attributed to an explicit session and, where integrations are available, to the agent that made it — Claude Code, Cursor, Cline, Aider, Codex, or you. Nothing ever leaves your machine.
 
 When something goes wrong, you type one word:
 
@@ -37,7 +37,7 @@ When something goes wrong, you type one word:
 au oops
 ```
 
-and the last burst of agent edits is rolled back, atomically, across every file that was touched. The rollback is itself recorded, so undo-the-undo is always one command away.
+and the last burst of agent edits is rolled back across every file that was touched. The rollback is itself recorded, so undo-the-undo is always one command away.
 
 ## Use cases
 
@@ -103,6 +103,14 @@ codex run "..."
 
 No cloud. No account. No telemetry. One binary. One SQLite file. Your code never leaves the machine.
 
+## Technical writeup
+
+If you want the deeper systems view — design, artifact status, and the current
+measured micro-evaluation — the public paper lives here:
+
+- PDF: `https://agent-undo.com/paper`
+- Source: [`paper/`](paper/)
+
 ## Design rules
 
 - **The agent is an untrusted process.** Treat AI coding agents the way a security engineer treats any process with write access to your filesystem.
@@ -115,7 +123,7 @@ Longer essay: [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
 ## Status
 
-`v0.0.x` — pre-alpha. The core pipeline works end-to-end. 23/23 integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS.
+`v0.0.x` — pre-alpha. The core pipeline works end-to-end. Integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS.
 
 Coming next: first-class editor integrations, richer daemon control, and launch/distribution polish.
 
