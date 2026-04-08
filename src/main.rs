@@ -18,6 +18,7 @@ mod config;
 mod daemon;
 mod hook;
 mod install;
+mod ipc;
 mod paths;
 mod restore;
 mod session;
@@ -39,7 +40,7 @@ use crate::store::Store;
     long_about = "agent-undo (au) snapshots every file your AI coding agent touches, \
                   attributes edits to specific agents (Claude Code, Cursor, Cline, Aider, \
                   Codex), and lets you undo any session with one command. Local-first, \
-                  zero telemetry, single 3.9 MB binary."
+                  zero telemetry, single ~5 MB binary."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -344,12 +345,22 @@ fn cmd_status() -> Result<()> {
             return Ok(());
         }
     };
-    let store = Store::open(paths.clone())?;
-    let events = store.event_count()?;
+    let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
+    let events = if let Some(ipc::Response::Status { events, .. }) = &socket_status {
+        *events
+    } else {
+        let store = Store::open(paths.clone())?;
+        store.event_count()?
+    };
     println!("root:     {}", paths.root.display());
     println!("data:     {}", paths.data_dir.display());
     println!("events:   {events}");
     println!("database: {}", paths.db_path.display());
+    if socket_status.is_some() {
+        println!("daemon:   running ({})", paths.socket_path.display());
+    } else {
+        println!("daemon:   unavailable");
+    }
     Ok(())
 }
 
@@ -363,6 +374,7 @@ fn cmd_serve(detach: bool) -> Result<()> {
     // Foreground mode: write pidfile so `stop` can find us, clean up on exit.
     let pidfile = paths.data_dir.join("daemon.pid");
     let _ = std::fs::write(&pidfile, std::process::id().to_string());
+    let _socket = ipc::spawn_server(paths.clone())?;
     let store = Store::open(paths)?;
     let result = daemon::serve(store);
     let _ = std::fs::remove_file(&pidfile);
@@ -783,6 +795,22 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
 
 fn cmd_session_start(agent: String, metadata: Option<String>) -> Result<()> {
     let paths = ProjectPaths::discover()?;
+    if let Ok(response) = ipc::send(
+        &paths,
+        &ipc::Request::SessionStart {
+            agent: agent.clone(),
+            metadata: metadata.clone(),
+        },
+    ) {
+        match response {
+            ipc::Response::SessionStarted { session_id } => {
+                println!("{session_id}");
+                return Ok(());
+            }
+            ipc::Response::Error { message } => anyhow::bail!(message),
+            _ => anyhow::bail!("unexpected daemon response"),
+        }
+    }
     let store = Store::open(paths)?;
     let parsed = session::parse_metadata(metadata.as_deref())?;
     let session_id = session::start(
@@ -804,6 +832,21 @@ fn cmd_session_start(agent: String, metadata: Option<String>) -> Result<()> {
 
 fn cmd_session_end(session_id: String) -> Result<()> {
     let paths = ProjectPaths::discover()?;
+    if let Ok(response) = ipc::send(
+        &paths,
+        &ipc::Request::SessionEnd {
+            session_id: session_id.clone(),
+        },
+    ) {
+        match response {
+            ipc::Response::SessionEnded => {
+                println!("closed session {}", &session_id[..session_id.len().min(16)]);
+                return Ok(());
+            }
+            ipc::Response::Error { message } => anyhow::bail!(message),
+            _ => anyhow::bail!("unexpected daemon response"),
+        }
+    }
     let store = Store::open(paths)?;
     session::end(&store, &session_id, true)?;
     println!("closed session {}", &session_id[..session_id.len().min(16)]);

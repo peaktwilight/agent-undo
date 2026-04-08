@@ -13,6 +13,7 @@ pub struct ProjectPaths {
     pub objects_dir: PathBuf,
     pub db_path: PathBuf,
     pub config_path: PathBuf,
+    pub socket_path: PathBuf,
 }
 
 impl ProjectPaths {
@@ -45,12 +46,14 @@ impl ProjectPaths {
         let objects_dir = data_dir.join("objects");
         let db_path = data_dir.join("timeline.db");
         let config_path = data_dir.join("config.toml");
+        let socket_path = data_dir.join("daemon.sock");
         Self {
             root,
             data_dir,
             objects_dir,
             db_path,
             config_path,
+            socket_path,
         }
     }
 
