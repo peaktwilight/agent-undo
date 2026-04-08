@@ -9,6 +9,7 @@
 // Milestone A (this file): `init`, `serve`, `log` end-to-end.
 // Later milestones add `restore`, `oops`, attribution, sessions, TUI, hooks.
 
+mod blame;
 mod daemon;
 mod hook;
 mod install;
@@ -187,7 +188,7 @@ async fn main() -> Result<()> {
         } => cmd_restore(event_id, file, session),
         Command::Oops { confirm } => cmd_oops(confirm),
         Command::Pin { .. } => not_impl("pin"),
-        Command::Blame { .. } => not_impl("blame (v2)"),
+        Command::Blame { file } => cmd_blame(file),
         Command::Tui => not_impl("tui"),
         Command::Exec {
             agent,
@@ -287,6 +288,12 @@ fn cmd_serve() -> Result<()> {
     let paths = ProjectPaths::discover()?;
     let store = Store::open(paths)?;
     daemon::serve(store)
+}
+
+fn cmd_blame(file: String) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    blame::blame(&store, &file)
 }
 
 fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Result<()> {

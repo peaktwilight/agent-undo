@@ -262,6 +262,40 @@ fn init_install_hooks_flag_compiles_and_accepts_args() {
 }
 
 #[test]
+fn blame_walks_event_history_and_attributes_lines() {
+    let dir = unique_tmp_dir("blame");
+    fs::write(dir.join("c.rs"), "line one\nline two\n").unwrap();
+    run(&dir, &["init"]);
+
+    // Use exec wrapper which sets active-session, then perform a write that
+    // the watcher would normally catch. Since serve isn't running here, we
+    // simulate by running blame on whatever events exist (initial-scan only),
+    // verifying the command succeeds and outputs both lines.
+    let (code, out, err) = run(&dir, &["blame", "c.rs"]);
+    assert_eq!(code, 0, "blame failed: {err}");
+    assert!(out.contains("line one"), "missing line one: {out}");
+    assert!(out.contains("line two"), "missing line two: {out}");
+    assert!(out.contains("initial-scan"), "missing attribution: {out}");
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn blame_errors_on_unknown_file() {
+    let dir = unique_tmp_dir("blame_404");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, _, err) = run(&dir, &["blame", "no-such-file.rs"]);
+    assert_ne!(code, 0, "blame on missing file should fail");
+    assert!(
+        err.contains("no history") || err.to_lowercase().contains("error"),
+        "expected error message: {err}"
+    );
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn discover_errors_outside_initialized_project() {
     let dir = unique_tmp_dir("undisc");
     let (code, _, err) = run(&dir, &["log"]);
