@@ -29,11 +29,19 @@ const { installCmd, githubUrl } = Astro.props;
 
         <h1
           data-reveal
-          class="max-w-5xl text-[clamp(2.8rem,7.5vw,7rem)] font-black leading-[0.98] tracking-[-0.015em] text-white"
+          class="text-[clamp(2.4rem,5.4vw,5.25rem)] font-black leading-[0.95] tracking-[-0.02em] text-white"
           style="font-family: 'Outfit', 'Inter Variable', sans-serif; font-feature-settings: 'cv11', 'ss01';"
         >
           git for humans.<br />
-          <span class="text-cyan-400">au</span> for agents.
+          <span class="relative inline-block">
+            <span class="relative z-10 text-cyan-400">au</span>
+            <span
+              aria-hidden="true"
+              class="absolute inset-0 -z-0 blur-2xl"
+              style="background: radial-gradient(closest-side, rgba(6,182,212,0.35), rgba(6,182,212,0) 70%);"
+            ></span>
+          </span>
+          for agents.
         </h1>
 
         <div data-reveal class="mt-10 flex flex-wrap items-center gap-4">
