@@ -97,7 +97,7 @@ pub fn install_claude_hooks() -> Result<(bool, PathBuf)> {
             "matcher": HOOK_MATCHER,
             "hooks": [{
                 "type": "command",
-                "command": format!("agent-undo hook {}", cli),
+                "command": format!("au hook {}", cli),
                 "__comment": format!("{} — do not edit", HOOK_MARKER)
             }]
         }));

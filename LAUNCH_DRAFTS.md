@@ -17,7 +17,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 
 > My dear developers (and anyone who's ever lost code to an AI agent):
 >
-> I have built a single 3.9 MB Rust binary that snapshots every file your AI coding agent writes and lets you undo any agent session with one command. Editor-agnostic. Local-first. No cloud. The agent now has a safety net that survives even when .git is gone.
+> I have built **agent-undo**, a single 3.9 MB Rust binary. The command is `au`. After your AI coding agent destroys your code, you type `au oops` and the last session is gone. Editor-agnostic. Local-first. No cloud. The agent now has a safety net that survives even when .git is gone.
 >
 > agent-undo.dev
 
@@ -30,9 +30,9 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 > What it actually does:
 >
 > [GIF — 12 seconds]
-> Claude Code wrecks 5 files. User types `agent-undo oops`. Files restored byte-for-byte. Tests green. Total elapsed: 4 seconds.
+> Claude Code wrecks 5 files. User types `au oops`. Files restored byte-for-byte. Tests green. Total elapsed: 4 seconds.
 >
-> One word, one keystroke, your code is back.
+> Two letters. One word. Your code is back.
 
 ---
 
@@ -54,7 +54,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 
 > The unique trick: every edit is attributed to the agent that made it.
 >
-> [SCREENSHOT of `agent-undo blame config.rs`]
+> [SCREENSHOT of `au blame config.rs`]
 >
 > ```
 > cursor       cursor-b   2026-04-08 08:33   1: pub const PORT: u16 = 9090;
@@ -85,7 +85,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 > ```
 > curl -fsSL https://agent-undo.dev/install.sh | sh
 > cd your-project
-> agent-undo init --install-hooks
+> au init --install-hooks
 > ```
 >
 > Single 3.9 MB binary. No runtime. macOS + Linux. Windows soon.
@@ -118,7 +118,7 @@ Replace `<NAME>` with whatever the locked project name is on launch day. Current
 
 ## Tweet #9 — the day-2 follow-up (mirroring Cheng Lou's "cured cancer" tweet)
 
-> Jeeesus, I wake up and apparently agent-undo cured cancer overnight. Thanks for the affection folks. Anyway, here's a 30-second screen recording of letting Claude Code run with `--dangerously-skip-permissions` for a full minute in a real codebase, then `agent-undo oops` rolling all of it back to t=0:
+> Jeeesus, I wake up and apparently agent-undo cured cancer overnight. Thanks for the affection folks. Anyway, here's a 30-second screen recording of letting Claude Code run with `--dangerously-skip-permissions` for a full minute in a real codebase, then `au oops` rolling all of it back to t=0:
 >
 > [GIF: oops apocalypse]
 
@@ -157,12 +157,12 @@ Cursor, Cline, Aider, Codex, or you.
 
 When something goes wrong:
 
-    agent-undo oops
+    au oops
 
 restores every file the last agent burst touched, atomically. The rollback
 is itself snapshotted, so undo-the-undo is one command away.
 
-The unique feature is `agent-undo blame <file>`, which shows per-line agent
+The unique feature is `au blame <file>`, which shows per-line agent
 attribution across multiple agents on the same file. No editor in the world
 can produce that view, because no editor sees other editors' edits.
 
@@ -205,7 +205,7 @@ So I built agent-undo. It's a single Rust binary that:
 
 - watches your project, snapshots every file write before it can be lost
 - tags every edit with which agent did it (Claude Code, Cursor, Cline, etc)
-- gives you `agent-undo oops` — one command to roll back the last agent burst
+- gives you `au oops` — one command to roll back the last agent burst (the project is `agent-undo`; the binary is `au`)
 
 Editor-agnostic. Local-first. Zero telemetry. ~$0 cost forever.
 
@@ -291,7 +291,7 @@ In the meantime, two things:
 - [ ] Landing site deployed and Lighthouse 95+
 - [ ] Demo GIF #1 (5-file Claude wreck → oops) recorded, <2 MB
 - [ ] Demo GIF #2 (`oops apocalypse` 30-second version) recorded
-- [ ] Demo GIF #3 (`agent-undo blame` screenshot) prepared
+- [ ] Demo GIF #3 (`au blame` screenshot) prepared
 - [ ] OG image and Twitter card image at /og-image.png, /twitter-card.png
 - [ ] Homebrew tap published with `agent-undo` formula
 - [ ] crates.io package live (`cargo publish` succeeded)

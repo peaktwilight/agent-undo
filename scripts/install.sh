@@ -11,7 +11,7 @@
 set -eu
 
 REPO="peaktwilight/agent-undo"
-BIN_NAME="agent-undo"
+BIN_NAME="au"
 INSTALL_DIR="${AGENT_UNDO_INSTALL_DIR:-$HOME/.local/bin}"
 
 err()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -98,4 +98,4 @@ esac
 printf '\n'
 "$INSTALL_DIR/$BIN_NAME" --version 2>/dev/null || true
 printf '\n'
-ok 'next: cd into a project and run `agent-undo init --install-hooks`'
+ok 'next: cd into a project and run `au init --install-hooks`'

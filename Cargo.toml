@@ -11,7 +11,10 @@ keywords = ["ai", "agent", "undo", "rollback", "snapshot"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
-name = "agent-undo"
+# Short binary name for daily use, like ripgrep installs `rg`.
+# Cargo crate stays `agent-undo` for SEO + panic-search + LLM discoverability;
+# the typed command is `au`.
+name = "au"
 path = "src/main.rs"
 
 [dependencies]

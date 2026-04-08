@@ -25,8 +25,9 @@ fn unique_tmp_dir(label: &str) -> PathBuf {
 }
 
 fn bin_path() -> PathBuf {
-    // cargo sets CARGO_BIN_EXE_<bin_name> for integration tests
-    PathBuf::from(env!("CARGO_BIN_EXE_agent-undo"))
+    // cargo sets CARGO_BIN_EXE_<bin_name> for integration tests.
+    // The crate is `agent-undo` but the bin is `au`.
+    PathBuf::from(env!("CARGO_BIN_EXE_au"))
 }
 
 fn run(cwd: &PathBuf, args: &[&str]) -> (i32, String, String) {
@@ -240,8 +241,8 @@ fn init_install_hooks_flag_compiles_and_accepts_args() {
     let content = fs::read_to_string(&settings).unwrap();
     assert!(content.contains("PreToolUse"));
     assert!(content.contains("PostToolUse"));
-    assert!(content.contains("agent-undo hook pre"));
-    assert!(content.contains("agent-undo hook post"));
+    assert!(content.contains("au hook pre"));
+    assert!(content.contains("au hook post"));
     assert!(content.contains("Write|Edit|MultiEdit"));
 
     // Running again should be idempotent.
@@ -252,9 +253,9 @@ fn init_install_hooks_flag_compiles_and_accepts_args() {
         .output()
         .unwrap();
     assert_eq!(output2.status.code().unwrap_or(-1), 0);
-    // Count occurrences of "agent-undo hook pre" — should still be exactly 1
+    // Count occurrences of "au hook pre" — should still be exactly 1
     let content2 = fs::read_to_string(&settings).unwrap();
-    let count = content2.matches("agent-undo hook pre").count();
+    let count = content2.matches("au hook pre").count();
     assert_eq!(count, 1, "hooks should be idempotent, got {count} copies");
 
     fs::remove_dir_all(&dir).ok();

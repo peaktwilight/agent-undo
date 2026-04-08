@@ -1,4 +1,8 @@
-// agent-undo — Ctrl-Z for AI coding agents.
+// agent-undo (binary: `au`) — Ctrl-Z for AI coding agents.
+//
+// The crate ships as `agent-undo` on crates.io for discoverability and
+// panic-search ("how do I undo a Claude Code edit"), but installs a short
+// `au` binary in PATH — same shape as `ripgrep` installing `rg`.
 //
 // CLI entry point. Modules:
 //
@@ -6,8 +10,8 @@
 //   store  — content-addressable blob store + SQLite timeline
 //   daemon — FS watcher pipeline and initial scan
 //
-// Milestone A (this file): `init`, `serve`, `log` end-to-end.
-// Later milestones add `restore`, `oops`, attribution, sessions, TUI, hooks.
+// All user-facing commands run as `au <subcommand>`. The storage dir stays
+// `.agent-undo/` so anyone walking past a colleague's screen knows what it is.
 
 mod blame;
 mod daemon;
@@ -27,12 +31,13 @@ use crate::store::Store;
 
 #[derive(Parser)]
 #[command(
-    name = "agent-undo",
+    name = "au",
     version,
-    about = "Ctrl-Z for AI coding agents",
-    long_about = "Snapshots every file your AI coding agent touches, attributes edits \
-                  to specific agents (Claude Code, Cursor, Cline, Aider, Codex), and \
-                  lets you undo any session with one command."
+    about = "agent-undo — Ctrl-Z for AI coding agents",
+    long_about = "agent-undo (au) snapshots every file your AI coding agent touches, \
+                  attributes edits to specific agents (Claude Code, Cursor, Cline, Aider, \
+                  Codex), and lets you undo any session with one command. Local-first, \
+                  zero telemetry, single 3.9 MB binary."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -276,14 +281,12 @@ fn cmd_init(install_hooks: bool, no_scan: bool) -> Result<()> {
     if fresh {
         println!();
         println!("Next:");
-        println!("  agent-undo serve    # start the watcher");
-        println!("  agent-undo log      # see events as they happen");
-        println!("  agent-undo oops     # panic button");
+        println!("  au serve --daemon   # start the watcher in the background");
+        println!("  au log              # see events as they happen");
+        println!("  au oops             # panic button");
         if !install_hooks {
             println!();
-            println!(
-                "Tip: run `agent-undo init --install-hooks` to auto-attribute Claude Code edits."
-            );
+            println!("Tip: run `au init --install-hooks` to auto-attribute Claude Code edits.");
         }
     }
     Ok(())
@@ -486,11 +489,11 @@ fn cmd_doctor() -> Result<()> {
                 "⚠ stale pidfile at {} (pid {pid} not alive)",
                 pidfile.display()
             );
-            println!("  → run `agent-undo stop` to clean up, then `agent-undo serve --daemon`");
+            println!("  → run `au stop` to clean up, then `au serve --daemon`");
         }
     } else {
         println!("⚠ daemon not running");
-        println!("  → start it with `agent-undo serve --daemon`");
+        println!("  → start it with `au serve --daemon`");
     }
 
     // 5. Active session marker.
@@ -507,18 +510,18 @@ fn cmd_doctor() -> Result<()> {
     if let Some(settings) = install::claude_settings_path() {
         if settings.exists() {
             let content = std::fs::read_to_string(&settings).unwrap_or_default();
-            if content.contains("agent-undo hook") {
+            if content.contains("au hook") || content.contains("agent-undo hook") {
                 println!("✓ Claude Code hooks installed in {}", settings.display());
             } else {
                 println!("⚠ Claude Code settings.json exists but no agent-undo hook found");
-                println!("  → run `agent-undo init --install-hooks` to add them");
+                println!("  → run `au init --install-hooks` to add them");
             }
         } else {
             println!(
                 "ℹ Claude Code not detected (no {} found)",
                 settings.display()
             );
-            println!("  → if you use Claude Code, run `agent-undo init --install-hooks`");
+            println!("  → if you use Claude Code, run `au init --install-hooks`");
         }
     }
 
@@ -539,7 +542,7 @@ fn cmd_doctor() -> Result<()> {
     }
 
     println!();
-    println!("everything looks healthy. try `agent-undo log` to see what's happening.");
+    println!("everything looks healthy. try `au log` to see what's happening.");
     Ok(())
 }
 

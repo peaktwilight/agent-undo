@@ -61,7 +61,9 @@ jobs:
           TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
           STAGE="agent-undo-${TAG}-${{ matrix.target }}"
           mkdir -p "dist/${STAGE}"
-          cp "target/${{ matrix.target }}/release/agent-undo" "dist/${STAGE}/"
+          # Crate is `agent-undo` (Cargo.toml [package].name);
+          # binary is `au` (Cargo.toml [[bin]].name).
+          cp "target/${{ matrix.target }}/release/au" "dist/${STAGE}/"
           cp README.md PHILOSOPHY.md "dist/${STAGE}/"
           cd dist
           tar -czf "${STAGE}.tar.gz" "${STAGE}"
