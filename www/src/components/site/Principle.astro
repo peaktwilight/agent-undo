@@ -1,0 +1,65 @@
+---
+/**
+ * Principle — "the agent is an untrusted process" manifesto paragraph.
+ * Draws from PHILOSOPHY.md. Single-column prose, big headline with one
+ * cyan accent phrase.
+ */
+interface Props {
+  githubUrl: string;
+}
+const { githubUrl } = Astro.props;
+---
+<section class="border-b border-white/5">
+  <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+    <div class="max-w-3xl">
+      <p data-reveal class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+        The principle
+      </p>
+      <h2
+        data-reveal
+        class="mb-10 text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
+      >
+        The agent is
+        <span class="text-cyan-400">an untrusted process.</span>
+      </h2>
+      <div data-reveal class="space-y-6 text-[17px] leading-[1.65] text-white/65">
+        <p>
+          For 50 years, software engineering ceremony &mdash; version control, code review,
+          blame, audit logs &mdash; assumed one thing: the writer of the code is a human you
+          can hold accountable. That assumption silently broke when AI agents started
+          writing the majority of new code.
+        </p>
+        <p>
+          Agents fail in ways human contributors never would. They silently delete tests.
+          They rewrite mocks to make themselves pass. They refactor across boundaries
+          without understanding intent. A bad decision at 14:32:07 is 200 files deep by
+          14:32:42. None of the tools in your stack &mdash; git, your editor, your CI &mdash; were
+          designed for that.
+        </p>
+        <p class="text-white">
+          Treat AI coding agents the way a security engineer treats any process with
+          write access to your filesystem: assume it will eventually do something
+          wrong, and build the controls that let you recover when it does.
+        </p>
+        <p>
+          <code class="font-mono text-cyan-400">au</code> is the substrate.
+          Observability, attribution, reversibility &mdash; the three primitives the next
+          decade of agent-aware tooling will be built on.
+        </p>
+      </div>
+      <div data-reveal class="mt-10">
+        <a
+          href={`${githubUrl}/blob/main/PHILOSOPHY.md`}
+          rel="noopener"
+          class="inline-flex items-center gap-2 text-sm text-white/65 underline decoration-white/20 underline-offset-4 hover:text-white hover:decoration-white/50"
+        >
+          Read the full essay
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M13 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

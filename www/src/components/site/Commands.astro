@@ -1,0 +1,79 @@
+---
+/**
+ * Commands — full command reference organized as four groups (Setup, Read,
+ * Recover, Attribute). Monospace dt, prose dd. `au oops` gets a cyan highlight.
+ */
+const groups = [
+  {
+    title: "Setup",
+    rows: [
+      ["au init", "Scan project, set up .agent-undo/"],
+      ["au init --install-hooks", "Plus auto-install Claude Code hooks"],
+      ["au serve --daemon", "Background watcher"],
+      ["au doctor", "Diagnose project setup"],
+    ],
+  },
+  {
+    title: "Read",
+    rows: [
+      ["au log", "Timeline of file events, attributed"],
+      ["au sessions", "List recent agent sessions"],
+      ["au blame <file>", "Per-line agent attribution"],
+      ["au tui", "Interactive timeline scrubber"],
+    ],
+  },
+  {
+    title: "Recover",
+    highlight: "au oops",
+    rows: [
+      ["au oops", "Undo the last burst of agent edits"],
+      ["au restore --session <id>", "Atomic multi-file rollback"],
+      ["au pin <label>", "Pin a known-good state"],
+      ["au unpin <label>", "Restore project to a pin"],
+    ],
+  },
+  {
+    title: "Attribute",
+    rows: [
+      ["au hook pre|post", "Claude Code stdin-JSON protocol"],
+      ["au exec --agent X", "Wrap any CLI agent"],
+      ["au diff --session <id>", "Full session diff like a PR"],
+      ["au gc", "Garbage collect old events"],
+    ],
+  },
+];
+---
+<section class="border-b border-white/5">
+  <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+    <div data-reveal class="mb-16 max-w-3xl">
+      <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+        What you type
+      </p>
+      <h2
+        class="text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
+      >
+        Two letters.
+        <span class="text-white/45">Sixteen subcommands.</span>
+      </h2>
+    </div>
+
+    <div data-reveal class="grid gap-12 lg:grid-cols-2">
+      {groups.map((group) => (
+        <div>
+          <h3 class="mb-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{group.title}</h3>
+          <dl class="space-y-4 text-[14px]">
+            {group.rows.map(([cmd, desc]) => (
+              <div class="flex flex-col gap-1 sm:flex-row sm:gap-4">
+                <dt class={`font-mono shrink-0 sm:w-44 ${cmd === group.highlight ? "text-cyan-400" : "text-white"}`}>
+                  {cmd}
+                </dt>
+                <dd class="text-white/55">{desc}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

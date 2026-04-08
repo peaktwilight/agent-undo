@@ -95,7 +95,7 @@ Please test against these if you're poking at the code with a security hat on.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same dual MIT / Apache-2.0 license as the project.
+By contributing, you agree that your contributions will be licensed under the Apache License 2.0 — the same license as the rest of the project. See [`LICENSE`](LICENSE).
 
 ## Code of Conduct
 

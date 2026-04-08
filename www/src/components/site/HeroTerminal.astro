@@ -1,0 +1,48 @@
+---
+/**
+ * HeroTerminal — the static `au oops` terminal mockup. Centered below the
+ * hero, within its own section for clean scroll-anchoring. Blinking cursor
+ * is a single CSS keyframe; everything else is static content (the copy is
+ * the hook, not the motion).
+ */
+---
+<section class="border-b border-white/5">
+  <div data-reveal class="mx-auto max-w-5xl px-6 py-20 sm:py-28">
+    <div class="overflow-hidden rounded-lg border border-white/10 bg-[#0f0f0f]">
+      <div class="flex items-center gap-2 border-b border-white/10 bg-white/[0.02] px-4 py-2.5">
+        <div class="flex gap-1.5">
+          <div class="h-2.5 w-2.5 rounded-full bg-white/15"></div>
+          <div class="h-2.5 w-2.5 rounded-full bg-white/15"></div>
+          <div class="h-2.5 w-2.5 rounded-full bg-white/15"></div>
+        </div>
+        <span class="ml-2 font-mono text-[11px] text-white/45">~/my-project — au oops</span>
+      </div>
+      <div class="space-y-1 px-6 py-6 text-left font-mono text-[13px] leading-relaxed sm:text-[14px]">
+        <div class="text-white/45">$ au oops</div>
+        <div class="h-2"></div>
+        <div class="text-white/85">
+          ⚠  Last agent action: <span class="text-cyan-400">claude-code</span>, session 14:32&ndash;14:34, edited 5 files
+        </div>
+        <div class="pl-6 text-white/65">
+          src/auth.rs <span class="text-white/35">(-87)</span> <span class="text-white/35">+12</span>
+        </div>
+        <div class="pl-6 text-white/65">
+          src/middleware.rs <span class="text-white/35">(-23)</span> <span class="text-white/35">+5</span>
+        </div>
+        <div class="pl-6 text-white/65">
+          src/lib.rs <span class="text-white/35">(-4)</span> <span class="text-white/35">+1</span>
+        </div>
+        <div class="pl-6 text-white/65">
+          tests/auth.rs <span class="text-white/35">(deleted)</span>
+        </div>
+        <div class="pl-6 text-white/65">
+          Cargo.toml <span class="text-white/35">(-2)</span> <span class="text-white/35">+0</span>
+        </div>
+        <div class="h-2"></div>
+        <div class="text-white">
+          Roll back this entire session? <span class="text-cyan-400">[Y/n]</span><span class="blink ml-0.5 inline-block h-3.5 w-1.5 align-middle bg-cyan-400"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

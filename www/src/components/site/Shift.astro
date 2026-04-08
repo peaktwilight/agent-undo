@@ -1,0 +1,61 @@
+---
+/**
+ * Shift — the "git versions intent / au records action" category claim.
+ * Two-card hairline grid using gap-px on bg-white/10 to produce a single
+ * 1px rule between cells without the card-border-noise feel.
+ */
+---
+<section id="category" class="border-b border-white/5">
+  <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+    <div data-reveal class="mb-16 max-w-3xl">
+      <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+        The shift
+      </p>
+      <h2
+        class="text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
+      >
+        Source control assumes a human writer.
+        <span class="text-white/45">AI broke that assumption.</span>
+      </h2>
+    </div>
+
+    <div data-reveal class="grid gap-px overflow-hidden rounded-lg bg-white/10 md:grid-cols-2">
+      <div class="bg-[#0a0a0a] p-8 sm:p-10">
+        <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">git</p>
+        <p class="mb-6 text-xl font-medium text-white">
+          Versions human <span class="text-white/55">intent</span>.
+        </p>
+        <ul class="space-y-3 text-[15px] leading-relaxed text-white/65">
+          <li>You commit when you mean to.</li>
+          <li>Every change is a deliberate act.</li>
+          <li>History reflects what you wanted to keep.</li>
+          <li><code class="font-mono text-white/85">git blame</code> tells you which human wrote each line.</li>
+        </ul>
+      </div>
+
+      <div class="bg-[#0a0a0a] p-8 sm:p-10">
+        <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-400/80">
+          au
+        </p>
+        <p class="mb-6 text-xl font-medium text-white">
+          Records agent <span class="text-cyan-400">action</span>.
+        </p>
+        <ul class="space-y-3 text-[15px] leading-relaxed text-white/65">
+          <li>Every byte is captured on write.</li>
+          <li>No deliberate act required.</li>
+          <li>History reflects what actually happened.</li>
+          <li><code class="font-mono text-white/85">au blame</code> tells you which agent wrote each line.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p data-reveal class="mx-auto mt-12 max-w-3xl text-center text-[15px] leading-relaxed text-white/55">
+      A 5-minute Claude session can produce 200 file writes. git sees zero of them
+      until you type <code class="font-mono text-white/85">git add</code>.
+      <code class="font-mono text-white/85">au</code> sees all of them, the moment
+      they hit disk, tagged with the agent that made them.
+      <span class="text-white">They're not competitors. They're complements.</span>
+    </p>
+  </div>
+</section>

@@ -1,0 +1,35 @@
+# agent-undo
+
+> Local-first rollback for AI coding agents. A single Rust binary (`au`) that snapshots every file your agent writes, attributes each edit to the agent that made it, and lets you undo any session with one command: `au oops`.
+
+agent-undo is editor-agnostic (Claude Code, Cursor, Cline, Aider, Codex), captures every filesystem write into a content-addressable store (BLAKE3 + zstd + SQLite timeline), and never sends data off your machine. The positioning is simple: **git for humans, `au` for agents.** git versions human intent through discrete commits; `au` records continuous agent action. They coexist. Where `git blame` tells you which human wrote a line, `au blame` tells you which agent (or human) wrote it. Apache-2.0 licensed, pre-alpha, single 3.9 MB binary with no runtime dependencies.
+
+The crate name is `agent-undo` (descriptive, panic-searchable, LLM-friendly). The installed binary is `au` — same shape as `ripgrep` installing `rg`. You search for `agent-undo`; you type `au`.
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/README.md): Project overview, install, quick start, and what `au` does at a glance.
+- [PHILOSOPHY](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/PHILOSOPHY.md): The category claim — why AI agents need observability, attribution, reversibility, and review surface as first-class primitives, and why this is a primitive rather than a feature.
+- [ARCHITECTURE](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/ARCHITECTURE.md): Internals — the watcher, content-addressable object store, SQLite timeline schema, attribution hooks, and restore semantics.
+- [USE_CASES](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/USE_CASES.md): Concrete scenarios — recovering from bad agent edits, auditing what an agent changed, per-line agent attribution, pinning known-good state.
+- [CONTRIBUTING](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/CONTRIBUTING.md): How to build from source, run tests, and submit patches.
+- [LICENSE](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/LICENSE): Apache-2.0.
+
+## Install
+
+- [install.sh](https://agent-undo.com/install.sh): One-line install — `curl -fsSL https://agent-undo.com/install.sh | sh`. Installs the `au` binary on macOS (arm64, x64) and Linux (x64, arm64).
+- [crates.io](https://crates.io/crates/agent-undo): Install from source with `cargo install agent-undo`.
+- [GitHub Releases](https://github.com/peaktwilight/agent-undo/releases): Prebuilt single-binary releases for macOS and Linux.
+
+## How it works
+
+A small background daemon per project watches the filesystem with `notify-rs` (respecting `.gitignore` and `.agent-undoignore`), hashes each changed file with BLAKE3, and stores it in a content-addressable object store at `.agent-undo/objects/`. Before an AI agent writes, its hook (`au hook pre`) drops a JSON session marker so the watcher can tag each resulting timeline entry with the agent name, session id, and tool name. Every event lands in a SQLite timeline at `.agent-undo/timeline.db`. Commands like `au log`, `au sessions`, `au diff`, `au blame`, `au show`, `au pin`, `au restore`, and `au oops` are all queries or inverse operations over that table. Every restore snapshots current state first, so undo-the-undo is always one command away — you can never lose data by undoing.
+
+## Optional
+
+- [GitHub repository](https://github.com/peaktwilight/agent-undo): Source code, issues, and discussion.
+- [LAUNCH_DRAFTS](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/LAUNCH_DRAFTS.md): Draft launch posts and positioning copy.
+- [LAUNCH](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/LAUNCH.md): Launch plan and rollout notes.
+- [RESEARCH](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/RESEARCH.md): Background research on the problem space and prior art.
+- [VILLAIN](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/VILLAIN.md): The adversarial framing — what goes wrong when agents have unchecked write access.
+- [Cargo.toml](https://raw.githubusercontent.com/peaktwilight/agent-undo/main/Cargo.toml): Crate manifest and dependency list.

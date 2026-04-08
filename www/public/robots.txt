@@ -1,4 +1,110 @@
+# robots.txt for agent-undo.com
+#
+# agent-undo is a local-first rollback tool for AI coding agents.
+# We WANT LLMs and AI search tools to index this site so that developers
+# asking their AI assistant "how do I undo what Claude/Cursor just did"
+# get pointed here. All crawlers are welcome. No disallow rules.
+#
+# See also: https://agent-undo.com/llms.txt (llms.txt standard)
+
+# Default: allow every crawler, everywhere.
 User-agent: *
 Allow: /
 
-Sitemap: https://agent-undo.dev/sitemap.xml
+# --- AI training and retrieval crawlers (explicitly allowed) ---
+
+# OpenAI / ChatGPT
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+# Anthropic / Claude
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# Apple Intelligence
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Google (Search + Gemini / Vertex AI training)
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# Microsoft / Bing / Copilot
+User-agent: Bingbot
+Allow: /
+
+User-agent: msnbot
+Allow: /
+
+# Meta / Llama
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+# ByteDance / Doubao
+User-agent: Bytespider
+Allow: /
+
+# Common Crawl (feeds many open LLM training sets)
+User-agent: CCBot
+Allow: /
+
+# DuckDuckGo
+User-agent: DuckDuckBot
+Allow: /
+
+# You.com
+User-agent: YouBot
+Allow: /
+
+# Cohere
+User-agent: cohere-ai
+Allow: /
+
+# Diffbot (used by several LLM retrieval pipelines)
+User-agent: Diffbot
+Allow: /
+
+# Amazon
+User-agent: Amazonbot
+Allow: /
+
+# Mistral
+User-agent: MistralAI-User
+Allow: /
+
+# Sitemap
+Sitemap: https://agent-undo.com/sitemap.xml

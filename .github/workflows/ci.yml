@@ -54,6 +54,34 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-targets
 
+  www:
+    name: build www/ (Astro)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: www/pnpm-lock.yaml
+      - name: Install dependencies
+        working-directory: www
+        run: pnpm install --frozen-lockfile
+      - name: Build site
+        working-directory: www
+        run: pnpm build
+      - name: Report dist size
+        working-directory: www
+        run: |
+          echo "### www/dist size" >> "$GITHUB_STEP_SUMMARY"
+          du -sh dist >> "$GITHUB_STEP_SUMMARY" || true
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### JS files in dist (should be 0)" >> "$GITHUB_STEP_SUMMARY"
+          find dist -name '*.js' | wc -l >> "$GITHUB_STEP_SUMMARY"
+
   build-release:
     name: release build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}

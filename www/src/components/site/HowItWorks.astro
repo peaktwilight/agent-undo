@@ -1,0 +1,39 @@
+---
+/**
+ * HowItWorks — 4-stage pipeline grid. Same gap-px hairline rule trick as
+ * the Shift cards. One card per pipeline stage.
+ */
+const steps = [
+  { n: "01", t: "Watch", d: "notify-rs sees every write to your project tree. .gitignore is respected.", code: "fs.write → daemon" },
+  { n: "02", t: "Snapshot", d: "BLAKE3 hash, content-addressable store. Identical content dedupes automatically.", code: "blake3 → CAS" },
+  { n: "03", t: "Attribute", d: "A small JSON hook tags the event with the active agent, session, and tool.", code: "hook → session" },
+  { n: "04", t: "Recover", d: "au oops rolls back the last agent burst, atomically. The undo is itself snapshotted.", code: "oops → restore" },
+];
+---
+<section id="how" class="border-b border-white/5">
+  <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+    <div data-reveal class="mb-16 max-w-3xl">
+      <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
+        How it works
+      </p>
+      <h2
+        class="text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
+      >
+        A four-stage pipeline.
+        <span class="text-white/45">Always on. Sub-1% CPU.</span>
+      </h2>
+    </div>
+
+    <div data-reveal class="grid gap-px overflow-hidden rounded-lg bg-white/10 md:grid-cols-4">
+      {steps.map((step) => (
+        <div class="bg-[#0a0a0a] p-8">
+          <div class="mb-5 font-mono text-xs text-white/35">{step.n}</div>
+          <h3 class="mb-3 text-base font-semibold text-white">{step.t}</h3>
+          <p class="mb-6 text-sm leading-relaxed text-white/60">{step.d}</p>
+          <div class="font-mono text-[11px] text-cyan-400/70">{step.code}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

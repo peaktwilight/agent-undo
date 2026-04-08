@@ -1,0 +1,56 @@
+---
+/**
+ * FinalCTA — last section before the footer. White pill install button,
+ * "Read the source" secondary. Copies the visual beat of pwnkit-cloud's
+ * final contact CTA.
+ */
+interface Props {
+  installCmd: string;
+  githubUrl: string;
+}
+const { installCmd, githubUrl } = Astro.props;
+---
+<section>
+  <div class="mx-auto max-w-7xl px-6 py-32 text-center">
+    <h2
+      data-reveal
+      class="mx-auto max-w-3xl text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-6xl"
+      style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
+    >
+      Stop archaeologizing<br />
+      <span class="text-white/45">your <code class="font-mono">~/.claude</code> logs.</span>
+    </h2>
+    <p data-reveal class="mx-auto mt-8 max-w-xl text-base leading-relaxed text-white/60">
+      Install the binary. Run <code class="font-mono">au init --install-hooks</code>.
+      Forget about it until your agent does something stupid.
+    </p>
+    <div data-reveal class="mt-10 flex flex-wrap items-center justify-center gap-4">
+      <button
+        type="button"
+        class="copy-btn group inline-flex h-12 items-center gap-3 rounded-md bg-white px-6 font-mono text-[14px] font-medium text-black transition-colors hover:bg-white/90"
+        data-copy={installCmd}
+        aria-label="Copy install command"
+      >
+        <span class="text-black/50">$</span>
+        <span>{installCmd}</span>
+        <svg class="copy-icon h-4 w-4 text-black/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+        </svg>
+        <svg class="check-icon hidden h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </button>
+      <a
+        href={githubUrl}
+        rel="noopener"
+        class="inline-flex h-12 items-center gap-2 rounded-md border border-white/15 px-6 text-[14px] font-medium text-white transition-colors hover:border-white/35 hover:bg-white/5"
+      >
+        Read the source
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M13 5l7 7-7 7" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>

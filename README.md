@@ -102,4 +102,4 @@ Coming next: Cursor / Cline / Aider hook integrations, Homebrew tap, `install.sh
 
 ## License
 
-Dual-licensed under MIT and Apache-2.0.
+Apache-2.0. See [`LICENSE`](LICENSE).
