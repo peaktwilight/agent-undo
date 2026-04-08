@@ -5,6 +5,8 @@
 *.swp
 .env
 .env.local
+.omx*
+paper*
 
 # Personal notes, roadmap scratchpad, launch checklists
 ROADMAP.md

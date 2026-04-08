@@ -293,7 +293,15 @@ fn daemon_socket_serves_status_and_session_control() {
     );
 
     let _ = run(&dir, &["stop"]);
+    assert!(
+        !socket_path(&dir).exists(),
+        "stop should clean up the daemon socket path"
+    );
     fs::remove_dir_all(&dir).ok();
+}
+
+fn socket_path(dir: &PathBuf) -> PathBuf {
+    dir.join(".agent-undo/daemon.sock")
 }
 
 #[test]

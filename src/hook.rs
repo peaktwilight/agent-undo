@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
 
+use crate::ipc;
 use crate::paths::ProjectPaths;
 use crate::session;
 use crate::store::Store;
@@ -75,6 +76,29 @@ fn run_pre(input: ClaudeHookInput) -> Result<()> {
         return Ok(());
     };
 
+    let metadata = Some(serde_json::json!({ "tool": input.tool_name }).to_string());
+    if let Ok(response) = ipc::send(
+        &paths,
+        &ipc::Request::SessionStart {
+            agent: "claude-code".into(),
+            metadata: Some(
+                serde_json::json!({
+                    "session_id": input.session_id,
+                    "tool_name": input.tool_name,
+                    "file_path": input.file_path(),
+                    "tool": "claude-code"
+                })
+                .to_string(),
+            ),
+        },
+    ) {
+        match response {
+            ipc::Response::SessionStarted { .. } => return Ok(()),
+            ipc::Response::Error { message } => anyhow::bail!(message),
+            _ => anyhow::bail!("unexpected daemon response"),
+        }
+    }
+
     let store = Store::open(paths)?;
     session::start(
         &store,
@@ -83,7 +107,7 @@ fn run_pre(input: ClaudeHookInput) -> Result<()> {
             agent: "claude-code".into(),
             prompt: None,
             model: None,
-            metadata: Some(serde_json::json!({ "tool": input.tool_name }).to_string()),
+            metadata,
             tool_name: Some(input.tool_name.clone()),
             intended_file: input.file_path(),
             activate: true,
@@ -97,6 +121,18 @@ fn run_post(input: ClaudeHookInput) -> Result<()> {
     let Some(paths) = paths else {
         return Ok(());
     };
+    if let Ok(response) = ipc::send(
+        &paths,
+        &ipc::Request::SessionEnd {
+            session_id: input.session_id.clone(),
+        },
+    ) {
+        match response {
+            ipc::Response::SessionEnded => return Ok(()),
+            ipc::Response::Error { message } => anyhow::bail!(message),
+            _ => anyhow::bail!("unexpected daemon response"),
+        }
+    }
     let store = Store::open(paths)?;
     session::end(&store, &input.session_id, true)?;
     Ok(())

@@ -450,6 +450,7 @@ fn cmd_stop() -> Result<()> {
         println!("stop on non-unix platforms not yet supported (kill pid {pid} manually)");
     }
     let _ = std::fs::remove_file(&pidfile);
+    let _ = std::fs::remove_file(&paths.socket_path);
     Ok(())
 }
 
@@ -561,11 +562,27 @@ fn cmd_doctor(fix: bool) -> Result<()> {
 
     // 4. Daemon status.
     let pidfile = paths.data_dir.join("daemon.pid");
+    let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
     if pidfile.exists() {
         let pid_str = std::fs::read_to_string(&pidfile).unwrap_or_default();
         let pid: u32 = pid_str.trim().parse().unwrap_or(0);
-        if pid > 0 && process_alive(pid) {
-            println!("✓ daemon running (pid {pid})");
+        if let Some(ipc::Response::Status { events, active_session }) = &socket_status {
+            println!(
+                "✓ daemon running (pid {pid}, {} events, socket {})",
+                events,
+                paths.socket_path.display()
+            );
+            if let Some(active) = active_session {
+                println!(
+                    "  active session via daemon: {} ({})",
+                    active.agent, active.session_id
+                );
+            }
+        } else if pid > 0 && process_alive(pid) {
+            println!(
+                "✓ daemon running (pid {pid}) but socket is unavailable at {}",
+                paths.socket_path.display()
+            );
         } else {
             println!(
                 "⚠ stale pidfile at {} (pid {pid} not alive)",
@@ -573,14 +590,22 @@ fn cmd_doctor(fix: bool) -> Result<()> {
             );
             if fix {
                 let _ = std::fs::remove_file(&pidfile);
+                let _ = std::fs::remove_file(&paths.socket_path);
                 println!("  fixed: removed stale pidfile");
             } else {
                 println!("  → run `au stop` to clean up, then `au serve --daemon`");
             }
         }
     } else {
-        println!("⚠ daemon not running");
-        println!("  → start it with `au serve --daemon`");
+        if socket_status.is_some() {
+            println!(
+                "✓ daemon control socket responding at {}",
+                paths.socket_path.display()
+            );
+        } else {
+            println!("⚠ daemon not running");
+            println!("  → start it with `au serve --daemon`");
+        }
     }
 
     // 5. Active session marker.

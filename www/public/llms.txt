@@ -2,7 +2,7 @@
 
 > Local-first rollback for AI coding agents. A single Rust binary (`au`) that snapshots every file your agent writes, attributes each edit to the agent that made it, and lets you undo any session with one command: `au oops`.
 
-agent-undo is editor-agnostic (Claude Code, Cursor, Cline, Aider, Codex), captures every filesystem write into a content-addressable store (BLAKE3 + zstd + SQLite timeline), and never sends data off your machine. The positioning is simple: **git for humans, `au` for agents.** git versions human intent through discrete commits; `au` records continuous agent action. They coexist. Where `git blame` tells you which human wrote a line, `au blame` tells you which agent (or human) wrote it. Apache-2.0 licensed, pre-alpha, single 3.9 MB binary with no runtime dependencies.
+agent-undo is editor-agnostic (Claude Code, Cursor, Cline, Aider, Codex), captures every filesystem write into a content-addressable store (BLAKE3 + zstd + SQLite timeline), and never sends data off your machine. The positioning is simple: **git for humans, `au` for agents.** git versions human intent through discrete commits; `au` records continuous agent action. They coexist. Where `git blame` tells you which human wrote a line, `au blame` tells you which agent (or human) wrote it. Apache-2.0 licensed, pre-alpha, single ~5 MB binary with no runtime dependencies.
 
 The crate name is `agent-undo` (descriptive, panic-searchable, LLM-friendly). The installed binary is `au` — same shape as `ripgrep` installing `rg`. You search for `agent-undo`; you type `au`.
 
