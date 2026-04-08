@@ -196,7 +196,7 @@ async fn main() -> Result<()> {
             session,
         } => cmd_restore(event_id, file, session),
         Command::Oops { confirm } => cmd_oops(confirm),
-        Command::Pin { .. } => not_impl("pin"),
+        Command::Pin { label } => cmd_pin(label),
         Command::Blame { file } => cmd_blame(file),
         Command::Tui => cmd_tui(),
         Command::Exec {
@@ -207,7 +207,7 @@ async fn main() -> Result<()> {
         Command::Session(_) => not_impl("session"),
         Command::Hook(HookCmd::Pre) => hook::handle_pre(),
         Command::Hook(HookCmd::Post) => hook::handle_post(),
-        Command::Gc => not_impl("gc"),
+        Command::Gc => cmd_gc(),
     }
 }
 
@@ -401,6 +401,25 @@ fn process_alive(pid: u32) -> bool {
         let _ = pid;
         false
     }
+}
+
+fn cmd_pin(label: String) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    let id = store.create_pin(&label)?;
+    println!("pinned current state as #{id}: {label}");
+    Ok(())
+}
+
+fn cmd_gc() -> Result<()> {
+    // Default policy: keep last 7 days of events.
+    const SEVEN_DAYS_NS: i64 = 7 * 24 * 60 * 60 * 1_000_000_000;
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    let (events, blobs) = store.gc(SEVEN_DAYS_NS)?;
+    println!("gc: removed {events} event(s) and {blobs} blob(s) older than 7 days");
+    println!("    (pinned events and the latest event per file are always preserved)");
+    Ok(())
 }
 
 fn cmd_blame(file: String) -> Result<()> {

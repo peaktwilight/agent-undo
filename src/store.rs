@@ -344,6 +344,125 @@ impl Store {
             .map_err(Into::into)
     }
 
+    // --- pins -------------------------------------------------------------
+
+    pub fn create_pin(&self, label: &str) -> Result<i64> {
+        // Pin against the *latest* event id, or 0 if there are none yet.
+        let event_id: i64 = self
+            .conn
+            .query_row("SELECT COALESCE(MAX(id), 0) FROM events", [], |row| {
+                row.get(0)
+            })
+            .unwrap_or(0);
+        let ts_ns = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as i64)
+            .unwrap_or(0);
+        self.conn.execute(
+            "INSERT INTO pins (event_id, label, created_at_ns) VALUES (?1, ?2, ?3)",
+            params![event_id, label, ts_ns],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    #[allow(dead_code)] // wired by `agent-undo pin --list` in v0.3
+    pub fn list_pins(&self) -> Result<Vec<PinRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, event_id, label, created_at_ns FROM pins ORDER BY created_at_ns DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(PinRow {
+                id: row.get(0)?,
+                event_id: row.get(1)?,
+                label: row.get(2)?,
+                created_at_ns: row.get(3)?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    /// Garbage-collect events older than `older_than_ns` AND not referenced
+    /// by any pin. Returns (events_deleted, blobs_deleted).
+    pub fn gc(&self, older_than_ns: i64) -> Result<(usize, usize)> {
+        let pin_event_ids: Vec<i64> = self
+            .conn
+            .prepare("SELECT DISTINCT event_id FROM pins")?
+            .query_map([], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        // Delete events older than the cutoff that are not pinned.
+        let cutoff_ts: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as i64)
+            .unwrap_or(0)
+            - older_than_ns;
+
+        // Don't drop the most recent event for each path — that's the live
+        // state and the dedup baseline.
+        let mut stmt = self.conn.prepare(
+            "SELECT id FROM events
+             WHERE ts_ns < ?1
+               AND id NOT IN (SELECT MAX(id) FROM events GROUP BY path)
+               AND id NOT IN (SELECT event_id FROM pins)",
+        )?;
+        let to_delete: Vec<i64> = stmt
+            .query_map(params![cutoff_ts], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        drop(stmt);
+
+        let mut events_deleted = 0usize;
+        for id in &to_delete {
+            self.conn
+                .execute("DELETE FROM events WHERE id = ?1", params![id])?;
+            events_deleted += 1;
+        }
+        let _ = pin_event_ids; // currently informational; reserved for v0.3 strict mode
+
+        // Sweep orphan blobs: any object on disk that no live event references.
+        let referenced: std::collections::HashSet<String> = self
+            .conn
+            .prepare(
+                "SELECT before_hash FROM events WHERE before_hash IS NOT NULL
+                 UNION SELECT after_hash FROM events WHERE after_hash IS NOT NULL
+                 UNION SELECT latest_hash FROM file_state",
+            )?
+            .query_map([], |row| row.get::<_, String>(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let mut blobs_deleted = 0usize;
+        if let Ok(entries) = std::fs::read_dir(&self.paths.objects_dir) {
+            for shard in entries.flatten() {
+                let shard_path = shard.path();
+                if !shard_path.is_dir() {
+                    continue;
+                }
+                let shard_name = shard_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                if let Ok(blobs) = std::fs::read_dir(&shard_path) {
+                    for blob in blobs.flatten() {
+                        let blob_path = blob.path();
+                        let rest = blob_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let hash = format!("{shard_name}{rest}");
+                        if !referenced.contains(&hash) && std::fs::remove_file(&blob_path).is_ok() {
+                            blobs_deleted += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok((events_deleted, blobs_deleted))
+    }
+
     pub fn event_count(&self) -> Result<i64> {
         Ok(self
             .conn
@@ -367,6 +486,15 @@ pub struct NewEvent {
     pub pid: Option<i64>,
     pub process_name: Option<String>,
     pub tool_name: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // surfaced by `agent-undo pin` listing in v0.3
+pub struct PinRow {
+    pub id: i64,
+    pub event_id: i64,
+    pub label: String,
+    pub created_at_ns: i64,
 }
 
 #[derive(Debug, Clone)]

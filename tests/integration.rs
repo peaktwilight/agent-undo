@@ -334,6 +334,47 @@ fn daemon_starts_writes_pidfile_and_stops_cleanly() {
 }
 
 #[test]
+fn pin_creates_an_entry_and_gc_preserves_it() {
+    let dir = unique_tmp_dir("pin");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, _) = run(&dir, &["pin", "before-refactor"]);
+    assert_eq!(code, 0, "pin failed: {out}");
+    assert!(out.contains("before-refactor"), "unexpected: {out}");
+
+    // gc with default policy (7 days) shouldn't drop the just-created event.
+    let (gc_code, gc_out, _) = run(&dir, &["gc"]);
+    assert_eq!(gc_code, 0);
+    assert!(
+        gc_out.contains("removed 0 event"),
+        "unexpected gc output: {gc_out}"
+    );
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn install_script_exists_and_is_executable() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts")
+        .join("install.sh");
+    assert!(path.exists(), "install.sh missing at {}", path.display());
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("REPO=\"peaktwilight/agent-undo\""));
+    assert!(content.contains("apple-darwin"));
+    assert!(content.contains("unknown-linux-gnu"));
+    assert!(content.contains("aarch64"));
+    assert!(content.contains("x86_64"));
+    // Sanity-check shell parsing.
+    let status = Command::new("sh")
+        .args(["-n", path.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success(), "install.sh has shell parse errors");
+}
+
+#[test]
 fn discover_errors_outside_initialized_project() {
     let dir = unique_tmp_dir("undisc");
     let (code, _, err) = run(&dir, &["log"]);
