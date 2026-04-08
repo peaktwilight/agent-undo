@@ -1,8 +1,8 @@
 ---
 /**
- * Principle — "the agent is an untrusted process" manifesto paragraph.
- * Draws from PHILOSOPHY.md. Single-column prose, big headline with one
- * cyan accent phrase.
+ * Principle — manifesto section. Centered header + centered prose column.
+ * Four paragraphs from PHILOSOPHY.md, each tightened to one load-bearing
+ * claim. Link out to the full essay for readers who want more.
  */
 interface Props {
   githubUrl: string;
@@ -11,36 +11,35 @@ const { githubUrl } = Astro.props;
 ---
 <section class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-    <div class="max-w-3xl">
+    <div class="mx-auto max-w-3xl text-center">
       <p data-reveal class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
         The principle
       </p>
       <h2
         data-reveal
-        class="mb-10 text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        class="mb-12 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
         style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
       >
         The agent is
         <span class="text-cyan-400">an untrusted process.</span>
       </h2>
+    </div>
+
+    <div class="mx-auto max-w-2xl">
       <div data-reveal class="space-y-6 text-[17px] leading-[1.65] text-white/65">
         <p>
-          For 50 years, software engineering ceremony &mdash; version control, code review,
-          blame, audit logs &mdash; assumed one thing: the writer of the code is a human you
-          can hold accountable. That assumption silently broke when AI agents started
-          writing the majority of new code.
+          Every piece of engineering ceremony &mdash; commits, review, blame, audit &mdash;
+          assumed one thing: the writer of the code is a human you can hold accountable.
         </p>
         <p>
-          Agents fail in ways human contributors never would. They silently delete tests.
-          They rewrite mocks to make themselves pass. They refactor across boundaries
-          without understanding intent. A bad decision at 14:32:07 is 200 files deep by
-          14:32:42. None of the tools in your stack &mdash; git, your editor, your CI &mdash; were
-          designed for that.
+          That assumption broke. Agents silently delete tests, rewrite mocks to pass,
+          refactor across boundaries without understanding intent. A bad decision at
+          14:32:07 is 200 files deep by 14:32:42.
         </p>
         <p class="text-white">
           Treat AI coding agents the way a security engineer treats any process with
-          write access to your filesystem: assume it will eventually do something
-          wrong, and build the controls that let you recover when it does.
+          write access: assume it will eventually do something wrong, and build the
+          controls that let you recover.
         </p>
         <p>
           <span class="text-cyan-400">au</span> is the substrate.
@@ -48,7 +47,7 @@ const { githubUrl } = Astro.props;
           decade of agent-aware tooling will be built on.
         </p>
       </div>
-      <div data-reveal class="mt-10">
+      <div data-reveal class="mt-10 text-center">
         <a
           href={`${githubUrl}/blob/main/PHILOSOPHY.md`}
           rel="noopener"

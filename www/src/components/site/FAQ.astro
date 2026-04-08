@@ -1,74 +1,62 @@
 ---
 /**
- * FAQ — native <details> accordion. Zero JS, zero dependencies.
- * Ten questions developers ask before they install agent-undo.
+ * FAQ — native <details> accordion. Zero JS. Centered header, left-aligned
+ * question list inside a centered max-w-4xl container.
  *
- * Typography rule for the answers:
- *   - Standalone `au`/`git`/`agent-undo` as project names use <span>
- *     with a color only, no monospace. They're names, not code tokens.
- *   - Real commands with arguments ('au init --install-hooks'),
- *     literal file paths ('.agent-undo/', '.git'), and literal string
- *     values ('unknown' as a column value) use <code class="font-mono">.
+ * Trimmed from 10 → 7: cut 'stability', 'performance cost', and 'does my
+ * code leave my machine' — those are already answered by the crates.io
+ * link, the 'local-first' eyebrow, and the fact that the page exists.
+ *
+ * Typography: standalone 'au'/'git' as project names use <span> with a
+ * color only. Real commands, file paths, and literal values use <code>.
  */
 const faqs: { q: string; a: string }[] = [
   {
-    q: "What's the difference between this and git?",
-    a: "<span class=\"text-white/85\">git</span> versions human <em class=\"not-italic text-white/85\">intent</em> — commits are deliberate acts you type on purpose. <span class=\"text-cyan-400\">au</span> records agent <em class=\"not-italic text-white/85\">action</em> — every byte, the moment it hits disk. They complement each other and you run both. <span class=\"text-white/85\">git</span> stays exactly what it is; <span class=\"text-cyan-400\">au</span> fills the gap between commits.",
+    q: "How is this different from git?",
+    a: "<span class=\"text-white/85\">git</span> versions intent — commits are deliberate acts. <span class=\"text-cyan-400\">au</span> records action — every byte, the moment it hits disk. You run both.",
   },
   {
-    q: "Does this replace my editor's undo button?",
-    a: "No. Editor undo is in-memory and editor-bound — close the tab and it's gone. <span class=\"text-cyan-400\">au</span> is on-disk, editor-agnostic, and survives crashes, restarts, and agent rampages. Your editor sees its own edits; <span class=\"text-cyan-400\">au</span> sees everyone's.",
+    q: "Does it replace my editor's undo?",
+    a: "No. Editor undo is in-memory and editor-bound. <span class=\"text-cyan-400\">au</span> is on-disk, editor-agnostic, and survives crashes, restarts, and agent rampages.",
   },
   {
-    q: "Does it work with Cursor, Cline, Aider, Codex, or Continue?",
-    a: "Yes. There are two layers. First, a zero-config heuristic watches every filesystem write regardless of source, so rollback works out of the box. Second, opt-in hooks provide perfect attribution when the agent exposes a hook API — Claude Code today, Cursor/Cline/Aider coming via adapters. Without a hook you still get full rollback; you just see <code class=\"font-mono text-white/85\">unknown</code> in the agent column.",
+    q: "Does it work with Cursor, Cline, Aider, Codex?",
+    a: "Yes. A zero-config heuristic watches every filesystem write regardless of source. Hooks add perfect attribution when the agent exposes one — Claude Code today, Cursor/Cline/Aider via adapters shipping in v0.1.",
   },
   {
     q: "Does it touch my .git directory?",
-    a: "Never. <span class=\"text-cyan-400\">au</span> maintains its own independent content-addressable store under <code class=\"font-mono text-white/85\">.agent-undo/</code>. If your agent nukes <code class=\"font-mono text-white/85\">.git</code> itself, <span class=\"text-cyan-400\">au</span> is unaffected and can still roll everything back. This is intentional — the two systems are designed to live alongside each other, not on top of each other.",
+    a: "Never. <span class=\"text-cyan-400\">au</span> maintains its own store under <code class=\"font-mono text-white/85\">.agent-undo/</code>. If your agent nukes <code class=\"font-mono text-white/85\">.git</code> itself, <span class=\"text-cyan-400\">au</span> is unaffected and can still roll everything back.",
   },
   {
-    q: "What happens if the daemon isn't running when my agent writes?",
-    a: "You miss those events. The daemon is the capture surface — no daemon, no capture. <code class=\"font-mono text-white/85\">au init --install-hooks</code> sets up a per-project daemon that starts automatically, and <code class=\"font-mono text-white/85\">au doctor</code> tells you at a glance whether it's alive.",
+    q: "What if the daemon isn't running when my agent writes?",
+    a: "You miss those events. No daemon, no capture. <code class=\"font-mono text-white/85\">au init --install-hooks</code> sets up a per-project daemon that starts automatically. <code class=\"font-mono text-white/85\">au doctor</code> tells you at a glance whether it's alive.",
   },
   {
     q: "How much disk does it use?",
-    a: "Content-addressable and deduped, so usually under 100 MB even on an active project. <code class=\"font-mono text-white/85\">au gc</code> runs a 7-day cutoff by default and sweeps orphaned blobs. Anything you <code class=\"font-mono text-white/85\">au pin</code> is kept forever.",
-  },
-  {
-    q: "Does my code ever leave my machine?",
-    a: "No. There is no cloud component, no account, no telemetry, no opt-out — because there is nothing to opt out of. It's a single 3.9 MB binary, one SQLite file, and a directory of compressed blobs. All local, all yours.",
+    a: "Content-addressable and deduped — usually under 100 MB on an active project. <code class=\"font-mono text-white/85\">au gc</code> runs a 7-day cutoff by default and sweeps orphaned blobs.",
   },
   {
     q: "Can I run it on CI?",
-    a: "You can, but it's designed for local use. CI is already good at capturing state through commits, artifacts, and logs; <span class=\"text-cyan-400\">au</span> fills the gap in the inner-loop dev environment, where agents move faster than commits. In CI you'd mostly be duplicating what <span class=\"text-white/85\">git</span> already does.",
-  },
-  {
-    q: "What's the performance cost?",
-    a: "Sub-1% CPU overhead on a normal coding session. The watcher uses native filesystem events (notify-rs on Linux and macOS), hashing is BLAKE3 at roughly 6 GB/s, and the SQLite timeline runs in WAL mode. On a 200-file burst from an agent, the daemon is invisible.",
-  },
-  {
-    q: "Is it stable enough to rely on?",
-    a: "It's pre-alpha (v0.0.x) with 17 integration tests and CI green on Linux and macOS. The core pipeline is verified, but the CLI surface may still shift. Roadmap: v0.1 ships Cursor/Cline hook adapters and a homebrew tap; v1.0 freezes the CLI surface and publishes to crates.io.",
+    a: "You can, but it's built for local use. CI is already good at capturing state via commits and artifacts. <span class=\"text-cyan-400\">au</span> fills the gap in the inner-loop dev environment, where agents move faster than your commit cadence.",
   },
 ];
 ---
 <section class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-    <div data-reveal class="mb-16 max-w-3xl">
+    <div data-reveal class="mx-auto mb-16 max-w-3xl text-center">
       <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
         Questions
       </p>
       <h2
-        class="text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        class="text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
         style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
       >
-        Ten things developers ask
+        Seven things developers ask
         <span class="text-white/45">before they install.</span>
       </h2>
     </div>
 
-    <div data-reveal class="max-w-4xl">
+    <div data-reveal class="mx-auto max-w-3xl">
       {faqs.map((faq) => (
         <details class="group border-b border-white/5 py-6 last:border-b-0">
           <summary class="flex cursor-pointer items-start justify-between gap-4 text-left">
@@ -101,7 +89,6 @@ const faqs: { q: string; a: string }[] = [
 </section>
 
 <style>
-  /* Kill the default disclosure marker across browsers */
   details > summary::-webkit-details-marker {
     display: none;
   }

@@ -1,18 +1,17 @@
 ---
 /**
- * Shift — the "git versions intent / au records action" category claim.
- * Two-card hairline grid using gap-px on bg-white/10 to produce a single
- * 1px rule between cells without the card-border-noise feel.
+ * Shift — the category claim. Centered header, two-card hairline grid,
+ * one-line closer. No fluff.
  */
 ---
 <section id="category" class="border-b border-white/5">
   <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-    <div data-reveal class="mb-16 max-w-3xl">
+    <div data-reveal class="mx-auto mb-16 max-w-3xl text-center">
       <p class="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">
         The shift
       </p>
       <h2
-        class="text-4xl font-bold leading-[1.05] tracking-[-0.015em] text-white sm:text-5xl md:text-6xl"
+        class="text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl md:text-6xl"
         style="font-family: 'Outfit', 'Inter Variable', sans-serif;"
       >
         Source control assumes a human writer.
@@ -20,7 +19,7 @@
       </h2>
     </div>
 
-    <div data-reveal class="grid gap-px overflow-hidden rounded-lg bg-white/10 md:grid-cols-2">
+    <div data-reveal class="mx-auto grid max-w-5xl gap-px overflow-hidden rounded-lg bg-white/10 md:grid-cols-2">
       <div class="bg-[#0a0a0a] p-8 sm:p-10">
         <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">git</p>
         <p class="mb-6 text-xl font-medium text-white">
@@ -48,12 +47,8 @@
       </div>
     </div>
 
-    <p data-reveal class="mx-auto mt-12 max-w-3xl text-center text-[15px] leading-relaxed text-white/55">
-      A 5-minute Claude session can produce 200 file writes. git sees zero of them
-      until you type <code class="font-mono text-white/85">git add</code>.
-      <span class="text-white/85">au</span> sees all of them, the moment they hit disk,
-      tagged with the agent that made them.
-      <span class="text-white">They're not competitors. They're complements.</span>
+    <p data-reveal class="mx-auto mt-12 max-w-2xl text-center text-base leading-relaxed text-white/60">
+      Not a replacement. <span class="text-white">A second system, running alongside.</span>
     </p>
   </div>
 </section>
