@@ -1,14 +1,19 @@
 use anyhow::Result;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::{EventKind, RecursiveMode, Watcher};
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::mpsc;
+use std::sync::mpsc::RecvTimeoutError;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::config::AppConfig;
 use crate::hook::{read_active_session, ActiveSession};
 use crate::store::{NewEvent, Store};
+
+const COALESCE_WINDOW_MS: u64 = 100;
 
 /// Walk the project tree and snapshot every file into the CAS, recording each
 /// as an `initial-scan` event. Called once from `agent-undo init` so that
@@ -89,41 +94,61 @@ pub fn serve(store: Store) -> Result<()> {
 
     let ignorer = build_ignorer(&root, &config);
 
-    while let Ok(res) = rx.recv() {
-        match res {
-            Ok(event) => {
-                if let Err(e) = handle_event(&store, &ignorer, &config, event) {
-                    tracing::warn!("handle_event error: {:?}", e);
-                }
+    while let Ok(first) = rx.recv() {
+        let mut batch = vec![first];
+        loop {
+            match rx.recv_timeout(Duration::from_millis(COALESCE_WINDOW_MS)) {
+                Ok(res) => batch.push(res),
+                Err(RecvTimeoutError::Timeout) => break,
+                Err(RecvTimeoutError::Disconnected) => break,
             }
-            Err(e) => tracing::warn!("watch error: {:?}", e),
+        }
+
+        if let Err(e) = handle_batch(&store, &ignorer, &config, batch) {
+            tracing::warn!("handle_batch error: {:?}", e);
         }
     }
     Ok(())
 }
 
-fn handle_event(
+fn handle_batch(
     store: &Store,
     ignorer: &Gitignore,
     config: &AppConfig,
-    event: notify::Event,
+    batch: Vec<notify::Result<notify::Event>>,
 ) -> Result<()> {
-    let relevant = matches!(
-        event.kind,
-        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
-    );
-    if !relevant {
-        return Ok(());
-    }
+    let mut candidates = BTreeSet::new();
 
-    for path in event.paths {
-        if should_skip(ignorer, &path) {
+    for res in batch {
+        let event = match res {
+            Ok(event) => event,
+            Err(e) => {
+                tracing::warn!("watch error: {:?}", e);
+                continue;
+            }
+        };
+        let relevant = matches!(
+            event.kind,
+            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+        );
+        if !relevant {
             continue;
         }
+
+        for path in event.paths {
+            if should_skip(ignorer, &path) || should_skip_transient(store, &path)? {
+                continue;
+            }
+            let _ = candidates.insert(path);
+        }
+    }
+
+    for path in candidates {
         if let Err(e) = process_path(store, &path, config) {
             tracing::warn!("process_path {}: {:?}", path.display(), e);
         }
     }
+
     Ok(())
 }
 
@@ -327,6 +352,26 @@ fn should_skip(ignorer: &Gitignore, path: &Path) -> bool {
     }
     let is_dir = path.is_dir();
     ignorer.matched(path, is_dir).is_ignore()
+}
+
+fn should_skip_transient(store: &Store, path: &Path) -> Result<bool> {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return Ok(false);
+    };
+    let looks_transient = name.ends_with(".tmp")
+        || name.ends_with(".temp")
+        || name.ends_with(".swp")
+        || name.ends_with(".swo")
+        || name.ends_with('~')
+        || name.ends_with("___jb_tmp___")
+        || name.ends_with("___jb_old___")
+        || name.starts_with(".#");
+    if !looks_transient {
+        return Ok(false);
+    }
+
+    let rel = relative_path(&store.paths.root, path);
+    Ok(store.get_file_state(&rel)?.is_none())
 }
 
 fn build_ignorer(root: &Path, config: &AppConfig) -> Gitignore {

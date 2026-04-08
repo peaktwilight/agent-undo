@@ -429,6 +429,39 @@ fn daemon_starts_writes_pidfile_and_stops_cleanly() {
 }
 
 #[test]
+fn daemon_coalesces_temp_file_save_patterns_into_the_real_file() {
+    let dir = unique_tmp_dir("daemon_tmp_save");
+    fs::write(dir.join("note.txt"), "v1").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, _) = run(&dir, &["serve", "--daemon"]);
+    assert_eq!(code, 0, "serve --daemon failed: {out}");
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let save = Command::new("sh")
+        .arg("-c")
+        .arg("printf 'v2' > note.txt.tmp && mv note.txt.tmp note.txt")
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert!(save.status.success(), "temp-file save failed: {:?}", save);
+    std::thread::sleep(std::time::Duration::from_millis(800));
+
+    let (_, log_out, _) = run(&dir, &["log", "-n", "10"]);
+    assert!(
+        log_out.contains("note.txt"),
+        "expected real file in log output: {log_out}"
+    );
+    assert!(
+        !log_out.contains("note.txt.tmp"),
+        "temp file should not pollute the timeline: {log_out}"
+    );
+
+    let _ = run(&dir, &["stop"]);
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn pin_creates_an_entry_and_gc_preserves_it() {
     let dir = unique_tmp_dir("pin");
     fs::write(dir.join("a.txt"), "x").unwrap();
