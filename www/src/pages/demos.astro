@@ -5,19 +5,19 @@ import Footer from "../components/Footer.astro";
 
 const demos = [
   {
-    title: "oops after a 5-file Claude rampage",
+    title: "oops after a 5-file agent rampage",
     status: "Recording pending",
-    blurb: "The hero clip: Claude wrecks multiple files, `au oops` restores the session, tests go green.",
+    blurb: "The hero clip: one session wrecks multiple files, `au oops` restores the rollback boundary, tests go green.",
     script: `cd demo-project
-au init --install-hooks
+au init
 au serve --daemon
-# let Claude edit 5 files
+# let an agent edit 5 files
 au oops`,
   },
   {
     title: "oops apocalypse",
     status: "Recording pending",
-    blurb: "Longer launch cut showing a real unattended agent run and a full rollback back to t=0.",
+    blurb: "Longer launch cut showing a real unattended run and a full rollback back to t=0.",
     script: `# real codebase, real session
 au sessions
 au diff --session <id>
@@ -47,7 +47,7 @@ au oops`,
       <p class="mt-5 text-base leading-8 text-white/65">
         The route is live now; the final GIFs and screenshots drop in as they are recorded. The
         goal is one gallery page that can hold the hero clip, the attribution screenshot, and
-        later community-contributed showcases.
+        later community-contributed showcases across terminal agents and editors.
       </p>
     </div>
 
@@ -70,7 +70,8 @@ au oops`,
       <h2 class="text-2xl font-semibold tracking-tight text-white">Community slot</h2>
       <p class="mt-4 max-w-3xl text-sm leading-7 text-white/65">
         Once the launch assets exist, this page can grow into a small showcase for pull requests
-        that add new recovery scenarios, benchmark clips, or attribution walkthroughs.
+        that add new recovery scenarios, benchmark clips, or attribution walkthroughs from any
+        agent workflow people are actually using.
       </p>
     </section>
   </main>

@@ -9,7 +9,7 @@ const install = [
 ];
 
 const commands = [
-  ["au init [--install-hooks|--uninstall-hooks] [--no-scan]", "Initialize `.agent-undo/`, write default config, and optionally manage Claude hooks."],
+  ["au init [--install-hooks|--uninstall-hooks] [--no-scan]", "Initialize `.agent-undo/`, write default config, and optionally manage the built-in Claude hook."],
   ["au serve --daemon", "Start the filesystem watcher in the background for the current project."],
   ["au stop", "Stop the project daemon by pidfile."],
   ["au status", "Show root, data directory, database path, and event count."],
@@ -43,6 +43,15 @@ const commands = [
       </p>
     </div>
 
+    <section class="mb-16 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+      <h2 class="mb-4 text-xl font-semibold tracking-tight text-white">Who it is for</h2>
+      <p class="max-w-3xl text-sm leading-7 text-white/65">
+        The tool is meant for local coding-agent workflows in terminals and editors: Codex, Claude
+        Code, Cursor, Cline, Aider, and anything else you can either hook directly or wrap with
+        <code> au exec --agent ... </code>. The happy path is broader than one vendor.
+      </p>
+    </section>
+
     <section class="mb-16">
       <h2 class="mb-5 text-xl font-semibold tracking-tight text-white">Install</h2>
       <div class="space-y-4">
@@ -55,10 +64,14 @@ const commands = [
     <section class="mb-16">
       <h2 class="mb-5 text-xl font-semibold tracking-tight text-white">Quick start</h2>
       <pre class="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-white/85"><code>{`cd my-project
-au init --install-hooks
+au init
 au serve --daemon
 
-# ...let your agent work...
+# optional: add built-in Claude Code hooks
+au init --install-hooks
+
+# optional: wrap any CLI agent immediately
+au exec --agent codex -- codex run "..."
 
 au log
 au sessions
