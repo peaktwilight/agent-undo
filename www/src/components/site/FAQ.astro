@@ -11,31 +11,31 @@ import SectionHeader from "../ui/SectionHeader.astro";
 const faqs: { q: string; a: string }[] = [
   {
     q: "How is this different from git?",
-    a: "<span class=\"text-white/85\">git</span> versions intent — commits are deliberate acts. <span class=\"text-cyan-400\">au</span> records action — every byte, the moment it hits disk. You run both.",
+    a: "<span class=\"text-white/85\">git</span> versions intent — commits are deliberate acts. <span class=\"text-amber-300\">au</span> records action — every byte, the moment it hits disk. You run both.",
   },
   {
     q: "Does it replace my editor's undo?",
-    a: "No. Editor undo is in-memory and editor-bound. <span class=\"text-cyan-400\">au</span> is on-disk, editor-agnostic, and survives crashes, restarts, and agent rampages.",
+    a: "No. Editor undo is in-memory and editor-bound. <span class=\"text-amber-300\">au</span> is on-disk, editor-agnostic, and survives crashes, restarts, and agent rampages.",
   },
   {
     q: "Does it work with Cursor, Cline, Aider, Codex?",
-    a: "Yes. A zero-config heuristic watches every filesystem write regardless of source. Hooks add perfect attribution when the agent exposes one — Claude Code today, Cursor/Cline/Aider via adapters shipping in v0.1.",
+    a: "Yes. The watcher captures writes regardless of source. Explicit sessions and hooks improve attribution when a tool exposes session context. Claude Code has a built-in hook today, and <code class=\"font-mono text-white/85\">au exec --agent ...</code> already works for any CLI you can wrap.",
   },
   {
     q: "Does it touch my .git directory?",
-    a: "Never. <span class=\"text-cyan-400\">au</span> maintains its own store under <code class=\"font-mono text-white/85\">.agent-undo/</code>. If your agent nukes <code class=\"font-mono text-white/85\">.git</code> itself, <span class=\"text-cyan-400\">au</span> is unaffected and can still roll everything back.",
+    a: "Never. <span class=\"text-amber-300\">au</span> maintains its own store under <code class=\"font-mono text-white/85\">.agent-undo/</code>. If your agent nukes <code class=\"font-mono text-white/85\">.git</code> itself, <span class=\"text-amber-300\">au</span> is unaffected and can still roll everything back.",
   },
   {
     q: "What if the daemon isn't running when my agent writes?",
-    a: "You miss those events. No daemon, no capture. <code class=\"font-mono text-white/85\">au init --install-hooks</code> sets up a per-project daemon that starts automatically. <code class=\"font-mono text-white/85\">au doctor</code> tells you at a glance whether it's alive.",
+    a: "You miss those events. No daemon, no capture. <code class=\"font-mono text-white/85\">au init</code> sets up the project. <code class=\"font-mono text-white/85\">au serve --daemon</code> starts the watcher. <code class=\"font-mono text-white/85\">au doctor</code> tells you at a glance whether it is alive.",
   },
   {
     q: "How much disk does it use?",
-    a: "Content-addressable and deduped — usually under 100 MB on an active project. <code class=\"font-mono text-white/85\">au gc</code> runs a 7-day cutoff by default and sweeps orphaned blobs.",
+    a: "Content-addressable and deduped — usually under 100 MB on an active project. <code class=\"font-mono text-white/85\">au gc</code> uses a 7-day cutoff by default and you can change that in <code class=\"font-mono text-white/85\">.agent-undo/config.toml</code>.",
   },
   {
     q: "Can I run it on CI?",
-    a: "You can, but it's built for local use. CI is already good at capturing state via commits and artifacts. <span class=\"text-cyan-400\">au</span> fills the gap in the inner-loop dev environment, where agents move faster than your commit cadence.",
+    a: "You can, but it's built for local use. CI is already good at capturing state via commits and artifacts. <span class=\"text-amber-300\">au</span> fills the gap in the inner-loop dev environment, where agents move faster than your commit cadence.",
   },
 ];
 ---

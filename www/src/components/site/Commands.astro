@@ -1,14 +1,14 @@
 ---
 /**
  * Commands — full command reference organized as four groups (Setup, Read,
- * Recover, Attribute). Monospace dt, prose dd. `au oops` gets a cyan highlight.
+ * Recover, Attribute). Monospace dt, prose dd. `au oops` gets the accent highlight.
  */
 const groups = [
   {
     title: "Setup",
     rows: [
       ["au init", "Scan project, set up .agent-undo/"],
-      ["au init --install-hooks", "Plus auto-install Claude Code hooks"],
+      ["au init --install-hooks", "Plus install the built-in Claude Code hook"],
       ["au serve --daemon", "Background watcher"],
       ["au doctor", "Diagnose project setup"],
     ],
@@ -35,8 +35,8 @@ const groups = [
   {
     title: "Attribute",
     rows: [
-      ["au hook pre|post", "Claude Code stdin-JSON protocol"],
-      ["au exec --agent X", "Wrap any CLI agent"],
+      ["au hook pre|post", "Hook surface for tools that emit write metadata"],
+      ["au exec --agent X", "Wrap any CLI agent right now"],
       ["au diff --session <id>", "Full session diff like a PR"],
       ["au gc", "Garbage collect old events"],
     ],
@@ -65,7 +65,7 @@ const groups = [
           <dl class="space-y-4 text-[14px]">
             {group.rows.map(([cmd, desc]) => (
               <div class="flex flex-col gap-1 sm:flex-row sm:gap-4">
-                <dt class={`font-mono shrink-0 sm:w-44 ${cmd === group.highlight ? "text-cyan-400" : "text-white"}`}>
+                <dt class={`font-mono shrink-0 sm:w-44 ${cmd === group.highlight ? "text-amber-300" : "text-white"}`}>
                   {cmd}
                 </dt>
                 <dd class="text-white/55">{desc}</dd>

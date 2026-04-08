@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <defs>
-    <!-- Subtle cyan dot grid -->
+    <!-- Subtle amber dot grid -->
     <pattern id="grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
       <rect width="40" height="40" fill="none"/>
-      <circle cx="0" cy="0" r="1" fill="#06b6d4" fill-opacity="0.06"/>
+      <circle cx="0" cy="0" r="1" fill="#f59e0b" fill-opacity="0.06"/>
     </pattern>
-    <!-- Soft cyan glow behind the second line -->
+    <!-- Soft amber glow behind the second line -->
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"  stop-color="#06b6d4" stop-opacity="0.25"/>
-      <stop offset="60%" stop-color="#06b6d4" stop-opacity="0.05"/>
-      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+      <stop offset="0%"  stop-color="#f59e0b" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#f59e0b" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
@@ -18,7 +18,7 @@
   <rect width="1200" height="630" fill="#0a0a0a"/>
   <rect width="1200" height="630" fill="url(#grid)"/>
 
-  <!-- Cyan glow behind "au for agents." -->
+  <!-- Amber glow behind "au for agents." -->
   <ellipse cx="600" cy="370" rx="500" ry="120" fill="url(#glow)"/>
 
   <!-- Eyebrow: tiny uppercase muted -->
@@ -41,13 +41,13 @@
     git for humans.
   </text>
 
-  <!-- Headline line 2 — au in cyan, rest in white -->
+  <!-- Headline line 2 — au in amber, rest in white -->
   <text x="600" y="430"
         font-family="Outfit, Inter, system-ui, sans-serif"
         font-size="124" font-weight="900"
         letter-spacing="-3"
         text-anchor="middle">
-    <tspan font-family="JetBrains Mono, Menlo, monospace" fill="#22d3ee">au</tspan>
+    <tspan font-family="JetBrains Mono, Menlo, monospace" fill="#fbbf24">au</tspan>
     <tspan fill="#ffffff" dx="20"> for agents.</tspan>
   </text>
 
