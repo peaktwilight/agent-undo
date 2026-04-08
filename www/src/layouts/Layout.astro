@@ -7,12 +7,12 @@ interface Props {
 }
 
 const {
-  title = "agent-undo — Ctrl-Z for AI coding agents",
-  description = "A 5MB binary that snapshots every file your AI touches and lets you roll back any edit, any session, any time. Editor-agnostic. Local-first. Zero config.",
+  title = "agent-undo — git for humans, au for agents",
+  description = "Local-first rollback for AI coding agents. A single Rust binary that snapshots every file your agent writes and lets you undo any session with one command. git versions your intent. au records the agent's. They live alongside each other.",
 } = Astro.props;
 
-const canonical = "https://agent-undo.dev/";
-const ogImage = "https://agent-undo.dev/og-image.png";
+const canonical = "https://agent-undo.com/";
+const ogImage = "https://agent-undo.com/og-image.png";
 ---
 
 <!doctype html>
@@ -25,7 +25,7 @@ const ogImage = "https://agent-undo.dev/og-image.png";
     <meta name="description" content={description} />
     <meta
       name="keywords"
-      content="agent-undo, AI coding agents, undo, rollback, Claude Code, Cursor, Cline, Aider, file snapshot, content-addressable, dev tools, Rust"
+      content="agent-undo, au, AI coding agents, undo, rollback, Claude Code, Cursor, Cline, Aider, file snapshot, content-addressable, source control, Rust CLI"
     />
     <meta name="author" content="agent-undo contributors" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -46,11 +46,10 @@ const ogImage = "https://agent-undo.dev/og-image.png";
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Outfit (display) + JetBrains Mono — Inter Variable is bundled via CSS import -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
   </head>
