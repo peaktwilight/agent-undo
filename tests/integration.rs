@@ -529,36 +529,35 @@ fn log_json_outputs_machine_readable_events() {
 
 #[test]
 fn unpin_restores_project_to_pinned_state() {
-    use std::io::Write;
     let dir = unique_tmp_dir("unpin");
     fs::write(dir.join("file.rs"), "v1").unwrap();
     run(&dir, &["init"]);
     run(&dir, &["pin", "v1-snapshot"]);
+    let (serve_code, _, serve_err) = run(&dir, &["serve", "--daemon"]);
+    assert_eq!(serve_code, 0, "serve --daemon failed: {serve_err}");
 
-    // Use the exec wrapper to record a session-tagged write so the unpin
-    // restore operates against a real (non-initial-scan) edit history.
-    let bin = bin_path();
-    let _ = Command::new("sh")
-        .arg("-c")
-        .arg(format!(
-            "{bin} exec --agent test -- sh -c 'printf v2 > file.rs'",
-            bin = bin.display()
-        ))
-        .current_dir(&dir)
-        .output()
-        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    fs::write(dir.join("file.rs"), "v2").unwrap();
+    fs::write(dir.join("new.rs"), "brand new").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(800));
 
-    // unpin should report the restoration even when the live file content
-    // hasn't been recorded by a watcher (we test the command path here, not
-    // the watcher round-trip).
     let (code, out, _) = run(&dir, &["unpin", "v1-snapshot"]);
     assert_eq!(code, 0, "unpin failed: {out}");
     assert!(
-        out.contains("file.rs") || out.contains("no recorded state"),
-        "unexpected unpin output: {out}"
+        out.contains("file.rs"),
+        "expected file.rs in restore output: {out}"
+    );
+    assert!(
+        out.contains("new.rs"),
+        "expected new.rs in restore output: {out}"
+    );
+    assert_eq!(fs::read_to_string(dir.join("file.rs")).unwrap(), "v1");
+    assert!(
+        !dir.join("new.rs").exists(),
+        "unpin should delete files created after the pin"
     );
 
-    let _ = std::io::stdout().flush();
+    let _ = run(&dir, &["stop"]);
     fs::remove_dir_all(&dir).ok();
 }
 

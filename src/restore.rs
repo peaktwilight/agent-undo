@@ -14,7 +14,7 @@
 // The oops/session variants are just bulk applications of `restore_file_to`.
 
 use anyhow::{bail, Context, Result};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -173,16 +173,26 @@ pub fn restore_pin(store: &Store, label: &str) -> Result<Vec<String>> {
     let pin = store
         .find_pin(label)?
         .ok_or_else(|| anyhow::anyhow!("no pin labeled '{label}'"))?;
-    let snapshot = store.file_state_at_event(pin.event_id)?;
-    if snapshot.is_empty() {
-        return Ok(vec![]);
+    let snapshot: BTreeMap<String, Option<String>> = store
+        .file_state_at_event(pin.event_id)?
+        .into_iter()
+        .collect();
+    let current_paths = store.current_tracked_paths()?;
+
+    let mut targets = BTreeSet::new();
+    for path in snapshot.keys() {
+        let _ = targets.insert(path.clone());
     }
+    for path in current_paths {
+        let _ = targets.insert(path);
+    }
+
     let mut restored = Vec::new();
-    for (path, target_hash) in snapshot {
+    for path in targets {
+        let target_hash = snapshot.get(&path).cloned().flatten();
         restore_file_to(store, &path, target_hash.as_deref())?;
         restored.push(path);
     }
-    restored.sort();
     Ok(restored)
 }
 

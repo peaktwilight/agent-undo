@@ -454,6 +454,15 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub fn current_tracked_paths(&self) -> Result<Vec<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT path FROM file_state ORDER BY path ASC")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
     #[allow(dead_code)] // surfaced by `agent-undo pin --list` in v0.3
     pub fn list_pins(&self) -> Result<Vec<PinRow>> {
         let mut stmt = self.conn.prepare(
