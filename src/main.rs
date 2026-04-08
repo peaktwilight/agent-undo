@@ -373,11 +373,11 @@ fn cmd_serve(detach: bool) -> Result<()> {
 
     // Foreground mode: write pidfile so `stop` can find us, clean up on exit.
     let pidfile = paths.data_dir.join("daemon.pid");
-    let _ = std::fs::write(&pidfile, std::process::id().to_string());
-    let socket_guard = ipc::spawn_server(paths.clone())?;
+    if !pidfile.exists() {
+        let _ = std::fs::write(&pidfile, std::process::id().to_string());
+    }
     let store = Store::open(paths)?;
     let result = daemon::serve(store);
-    drop(socket_guard);
     let _ = std::fs::remove_file(&pidfile);
     result
 }

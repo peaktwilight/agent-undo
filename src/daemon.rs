@@ -11,6 +11,7 @@ use sysinfo::{Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::config::AppConfig;
 use crate::hook::{read_active_session, ActiveSession};
+use crate::ipc;
 use crate::store::{NewEvent, Store};
 
 const COALESCE_WINDOW_MS: u64 = 100;
@@ -85,6 +86,7 @@ pub fn serve(store: Store) -> Result<()> {
     let config = AppConfig::load(&store.paths)?;
     let root = store.paths.root.clone();
     tracing::info!("agent-undo watching {}", root.display());
+    let socket_guard = ipc::spawn_server(store.paths.clone())?;
 
     let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
     let mut watcher = notify::recommended_watcher(move |res| {
@@ -108,6 +110,7 @@ pub fn serve(store: Store) -> Result<()> {
             tracing::warn!("handle_batch error: {:?}", e);
         }
     }
+    drop(socket_guard);
     Ok(())
 }
 
