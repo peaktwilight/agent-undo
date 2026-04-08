@@ -166,6 +166,26 @@ pub fn restore_latest_change_to_file(store: &Store, rel_path: &str) -> Result<Ev
     Ok(ev)
 }
 
+/// `restore --pin <label>`: restore every file in the project to its state
+/// at the moment the pin was created. Atomic across files; each one gets a
+/// pre-restore safety snapshot.
+pub fn restore_pin(store: &Store, label: &str) -> Result<Vec<String>> {
+    let pin = store
+        .find_pin(label)?
+        .ok_or_else(|| anyhow::anyhow!("no pin labeled '{label}'"))?;
+    let snapshot = store.file_state_at_event(pin.event_id)?;
+    if snapshot.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut restored = Vec::new();
+    for (path, target_hash) in snapshot {
+        restore_file_to(store, &path, target_hash.as_deref())?;
+        restored.push(path);
+    }
+    restored.sort();
+    Ok(restored)
+}
+
 /// Plan and execute `oops`: walk back from the most recent user-originated
 /// event, collecting everything within `window_ns`, and restore each affected
 /// file to the oldest pre-state in that batch.

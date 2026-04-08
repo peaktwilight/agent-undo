@@ -115,6 +115,9 @@ enum Command {
     /// Pin the current state so it's never garbage collected.
     Pin { label: String },
 
+    /// Restore the project to a previously pinned state.
+    Unpin { label: String },
+
     /// Show per-line agent attribution for a file (v2).
     Blame { file: String },
 
@@ -197,6 +200,7 @@ async fn main() -> Result<()> {
         } => cmd_restore(event_id, file, session),
         Command::Oops { confirm } => cmd_oops(confirm),
         Command::Pin { label } => cmd_pin(label),
+        Command::Unpin { label } => cmd_unpin(label),
         Command::Blame { file } => cmd_blame(file),
         Command::Tui => cmd_tui(),
         Command::Exec {
@@ -408,6 +412,28 @@ fn cmd_pin(label: String) -> Result<()> {
     let store = Store::open(paths)?;
     let id = store.create_pin(&label)?;
     println!("pinned current state as #{id}: {label}");
+    Ok(())
+}
+
+fn cmd_unpin(label: String) -> Result<()> {
+    let paths = ProjectPaths::discover()?;
+    let store = Store::open(paths)?;
+    let restored = restore::restore_pin(&store, &label)?;
+    if restored.is_empty() {
+        println!("pin '{label}' has no recorded state to restore");
+    } else {
+        println!(
+            "restored project to pin '{}' — {} file(s):",
+            label,
+            restored.len()
+        );
+        for p in restored.iter().take(20) {
+            println!("  {p}");
+        }
+        if restored.len() > 20 {
+            println!("  ... and {} more", restored.len() - 20);
+        }
+    }
     Ok(())
 }
 

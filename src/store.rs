@@ -365,7 +365,47 @@ impl Store {
         Ok(self.conn.last_insert_rowid())
     }
 
-    #[allow(dead_code)] // wired by `agent-undo pin --list` in v0.3
+    pub fn find_pin(&self, label: &str) -> Result<Option<PinRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, event_id, label, created_at_ns FROM pins
+             WHERE label = ?1 ORDER BY created_at_ns DESC LIMIT 1",
+        )?;
+        let result = stmt.query_row(params![label], |row| {
+            Ok(PinRow {
+                id: row.get(0)?,
+                event_id: row.get(1)?,
+                label: row.get(2)?,
+                created_at_ns: row.get(3)?,
+            })
+        });
+        match result {
+            Ok(p) => Ok(Some(p)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Snapshot of every file's state as of just before `event_id`. Used by
+    /// `restore --pin`: we want to restore the WHOLE PROJECT to its state at
+    /// the moment the pin was created.
+    pub fn file_state_at_event(&self, event_id: i64) -> Result<Vec<(String, Option<String>)>> {
+        // For each path, find the most recent event with id <= event_id
+        // and take its after_hash (or None if the file was deleted at that point).
+        let mut stmt = self.conn.prepare(
+            "SELECT path, after_hash FROM events e1
+             WHERE id = (
+                SELECT MAX(id) FROM events e2
+                WHERE e2.path = e1.path AND e2.id <= ?1
+             )",
+        )?;
+        let rows = stmt.query_map(params![event_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    #[allow(dead_code)] // surfaced by `agent-undo pin --list` in v0.3
     pub fn list_pins(&self) -> Result<Vec<PinRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, event_id, label, created_at_ns FROM pins ORDER BY created_at_ns DESC",
