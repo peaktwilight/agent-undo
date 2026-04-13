@@ -406,6 +406,7 @@ fn cmd_status(json: bool) -> Result<()> {
         }
     };
     let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
+    let daemon_running = socket_status.is_some() || daemon_running_via_pidfile(&paths);
     let events = if let Some(ipc::Response::Status { events, .. }) = &socket_status {
         *events
     } else {
@@ -413,7 +414,6 @@ fn cmd_status(json: bool) -> Result<()> {
         store.event_count()?
     };
     if json {
-        let daemon_running = socket_status.is_some();
         let active_session = match &socket_status {
             Some(ipc::Response::Status { active_session, .. }) => active_session.clone(),
             _ => None,
@@ -438,6 +438,13 @@ fn cmd_status(json: bool) -> Result<()> {
     println!("database: {}", paths.db_path.display());
     if socket_status.is_some() {
         println!("daemon:   running ({})", paths.socket_path.display());
+    } else if daemon_running {
+        let pidfile = paths.data_dir.join("daemon.pid");
+        if let Some(pid) = read_pidfile(&pidfile) {
+            println!("daemon:   running (pid {pid}, socket unavailable)");
+        } else {
+            println!("daemon:   running (socket unavailable)");
+        }
     } else {
         println!("daemon:   unavailable");
         if let Ok(path) = std::fs::read_to_string(&paths.socket_info_path) {
@@ -625,6 +632,17 @@ fn stop_process(pid: u32) -> Result<String> {
 fn read_pidfile(path: &std::path::Path) -> Option<u32> {
     let s = std::fs::read_to_string(path).ok()?;
     s.trim().parse::<u32>().ok()
+}
+
+#[cfg(unix)]
+fn daemon_running_via_pidfile(_paths: &ProjectPaths) -> bool {
+    false
+}
+
+#[cfg(not(unix))]
+fn daemon_running_via_pidfile(paths: &ProjectPaths) -> bool {
+    let pidfile = paths.data_dir.join("daemon.pid");
+    read_pidfile(&pidfile).is_some_and(process_alive)
 }
 
 #[cfg(windows)]
@@ -959,6 +977,7 @@ fn cmd_doctor_json(fix: bool) -> Result<()> {
     let pidfile = paths.data_dir.join("daemon.pid");
     let pid = read_pidfile(&pidfile);
     let socket_status = ipc::send(&paths, &ipc::Request::Status).ok();
+    let daemon_running = socket_status.is_some() || daemon_running_via_pidfile(&paths);
     let socket_hint = std::fs::read_to_string(&paths.socket_info_path)
         .ok()
         .map(|s| s.trim().to_string())
@@ -1010,9 +1029,13 @@ fn cmd_doctor_json(fix: bool) -> Result<()> {
                     "events": events,
                     "active_session": active_session,
                 }),
-                _ => serde_json::json!({
-                    "running": false,
+                _ if daemon_running => serde_json::json!({
+                    "running": true,
+                    "events": store.event_count()?,
+                    "active_session": serde_json::Value::Null,
+                    "via": "pidfile",
                 }),
+                _ => serde_json::json!({ "running": false }),
             }
         },
         "active_session_marker": {
