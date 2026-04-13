@@ -48,13 +48,18 @@ au init
 au serve --daemon
 wait_until_contains "daemon readiness" '"daemon_running": true' au status --json
 
-au exec --agent smoke -- sh -c 'printf "after\n" > story.txt'
+au exec --agent smoke -- sh -c 'printf "after\n" > story.txt; sleep 1'
 test "$(cat story.txt)" = "after"
 wait_until_contains "smoke session" "smoke" au sessions
-wait_until_contains "story write in log" "story.txt" au log -n 20
+wait_until_contains "story modification in log" "modify story.txt" au log -n 20
 
-printf '#!/usr/bin/env sh\nprintf "codex downstream\\n"\nprintf "wrapped-by-codex\\n" > codex-artifact.txt\n' > "${FAKEBIN}/codex"
+printf '#!/usr/bin/env sh\nprintf "codex downstream\\n"\nprintf "wrapped-by-codex\\n" > codex-artifact.txt\nsleep 1\n' > "${FAKEBIN}/codex"
 chmod +x "${FAKEBIN}/codex"
+
+oops_output="$(au oops --confirm)"
+printf '%s\n' "${oops_output}"
+printf '%s' "${oops_output}" | grep -Fq 'story.txt'
+test "$(cat story.txt)" = "before"
 
 au wrap install --preset codex
 export PATH="${FAKEBIN}:${PATH}"
@@ -63,11 +68,7 @@ wrapper_stdout="$(codex run smoke-check)"
 test "${wrapper_stdout}" = "codex downstream"
 test "$(cat codex-artifact.txt)" = "wrapped-by-codex"
 wait_until_contains "codex session" "codex" au sessions
-
-oops_output="$(au oops --confirm)"
-printf '%s\n' "${oops_output}"
-printf '%s' "${oops_output}" | grep -Fq 'story.txt'
-test "$(cat story.txt)" = "before"
+wait_until_contains "codex artifact in log" "codex-artifact.txt" au log -n 20
 
 au stop
 wait_until_contains "daemon shutdown" '"daemon_running": false' au status --json
