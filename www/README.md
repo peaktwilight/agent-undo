@@ -14,9 +14,13 @@ The launch landing site for [agent-undo](https://github.com/peaktwilight/agent-u
 ## Develop
 
 ```bash
+nvm use          # uses .nvmrc if you have nvm
 pnpm install
 pnpm dev          # http://localhost:4321
 ```
+
+Astro 6 in this repo requires Node `>=22.12.0`. CI uses Node 22, and local
+builds on Node 18 will fail before Astro starts.
 
 ## Build
 

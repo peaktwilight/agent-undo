@@ -151,7 +151,7 @@ for entry in $PATH; do
 done
 IFS="$OLD_IFS"
 
-PATH="$CLEAN_PATH" exec "{au_bin}" exec --agent "{agent}" -- "{binary}" "$@"
+PATH="$CLEAN_PATH" exec "{au_bin}" exec --quiet --agent "{agent}" -- "{binary}" "$@"
 "#,
         au_bin = au_bin.display(),
         agent = agent,

@@ -28,7 +28,9 @@ The deeper rationale is in [`PHILOSOPHY.md`](PHILOSOPHY.md). The technical desig
 
 ## Dev setup
 
-You need stable Rust (currently 1.94+). Everything else is in the lockfile.
+You need stable Rust (currently 1.94+). If you're touching `www/`, use Node
+`>=22.12.0` (see [`www/.nvmrc`](www/.nvmrc)). Everything else is in the
+lockfile.
 
 ```sh
 git clone https://github.com/peaktwilight/agent-undo.git

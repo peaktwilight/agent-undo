@@ -91,13 +91,15 @@ pub fn serve(store: Store) -> Result<()> {
     let root = store.paths.root.clone();
     tracing::info!("agent-undo watching {}", root.display());
     let stop = Arc::new(AtomicBool::new(false));
-    let socket_guard = ipc::spawn_server(store.paths.clone(), Arc::clone(&stop))?;
 
     let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
     let mut watcher = notify::recommended_watcher(move |res| {
         let _ = tx.send(res);
     })?;
     watcher.watch(&root, RecursiveMode::Recursive)?;
+    // Publish the control socket only after the watcher is armed so
+    // `status` reporting "daemon running" also means "ready to catch writes."
+    let socket_guard = ipc::spawn_server(store.paths.clone(), Arc::clone(&stop))?;
 
     let ignorer = build_ignorer(&root, &config);
 

@@ -157,6 +157,8 @@ enum Command {
         agent: String,
         #[arg(long)]
         label: Option<String>,
+        #[arg(long)]
+        quiet: bool,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
     },
@@ -280,8 +282,9 @@ async fn main() -> Result<()> {
         Command::Exec {
             agent,
             label,
+            quiet,
             command,
-        } => cmd_exec(agent, label, command),
+        } => cmd_exec(agent, label, quiet, command),
         Command::Wrap(WrapperCmd::Install {
             preset,
             agent,
@@ -1076,7 +1079,7 @@ fn cmd_tui() -> Result<()> {
     tui::run(&store)
 }
 
-fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Result<()> {
+fn cmd_exec(agent: String, label: Option<String>, quiet: bool, command: Vec<String>) -> Result<()> {
     use std::process::Command as Proc;
 
     if command.is_empty() {
@@ -1099,11 +1102,13 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
         },
     )?;
 
-    println!(
-        "agent-undo exec: running as session {} (agent={})",
-        &session_id[..16],
-        agent
-    );
+    if !quiet {
+        println!(
+            "agent-undo exec: running as session {} (agent={})",
+            &session_id[..16],
+            agent
+        );
+    }
 
     // Run the command, blocking until it exits. The watcher (assumed running
     // separately) will attribute any file writes during this window.
@@ -1115,7 +1120,9 @@ fn cmd_exec(agent: String, label: Option<String>, command: Vec<String>) -> Resul
 
     match status {
         Ok(s) if s.success() => {
-            println!("agent-undo exec: session closed ({})", &session_id[..16]);
+            if !quiet {
+                println!("agent-undo exec: session closed ({})", &session_id[..16]);
+            }
             Ok(())
         }
         Ok(s) => {

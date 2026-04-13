@@ -11,7 +11,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 fn unique_tmp_dir(label: &str) -> PathBuf {
     let ns = SystemTime::now()
@@ -40,6 +40,58 @@ fn run(cwd: &PathBuf, args: &[&str]) -> (i32, String, String) {
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     (code, stdout, stderr)
+}
+
+fn wait_for_daemon_ready(dir: &PathBuf) {
+    let started = Instant::now();
+    let timeout = Duration::from_secs(5);
+
+    loop {
+        let (code, out, err) = run(dir, &["status", "--json"]);
+        let sample = if code == 0 {
+            out
+        } else {
+            format!("status --json failed ({code}): {err}")
+        };
+
+        if code == 0 {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&sample) {
+                if parsed["daemon_running"].as_bool() == Some(true) {
+                    return;
+                }
+            }
+        }
+
+        if started.elapsed() >= timeout {
+            panic!("daemon never became ready: {sample}");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn wait_for_log_match<F>(dir: &PathBuf, description: &str, predicate: F) -> String
+where
+    F: Fn(&str) -> bool,
+{
+    let started = Instant::now();
+    let timeout = Duration::from_secs(5);
+
+    loop {
+        let (code, out, err) = run(dir, &["log", "-n", "20"]);
+        let sample = if code == 0 {
+            out
+        } else {
+            format!("log -n 20 failed ({code}): {err}")
+        };
+        if code == 0 && predicate(&sample) {
+            return sample;
+        }
+
+        if started.elapsed() >= timeout {
+            panic!("{description}: {sample}");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }
 
 #[test]
@@ -251,6 +303,10 @@ fn wrap_install_creates_working_terminal_agent_wrapper() {
         .output()
         .unwrap();
     assert_eq!(output.status.code().unwrap_or(-1), 0);
+    assert!(
+        String::from_utf8_lossy(&output.stdout).trim().is_empty(),
+        "wrapper should preserve downstream stdout without au banners"
+    );
     assert_eq!(
         fs::read_to_string(dir.join("wrapper-output.txt")).unwrap(),
         "wrapped:run hello"
@@ -261,6 +317,41 @@ fn wrap_install_creates_working_terminal_agent_wrapper() {
         sessions.contains("codex"),
         "wrapper usage should record a codex session: {sessions}"
     );
+
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&fake_bin).ok();
+}
+
+#[test]
+fn exec_quiet_suppresses_wrapper_session_banners() {
+    let dir = unique_tmp_dir("exec_quiet");
+    fs::write(dir.join("a.txt"), "x").unwrap();
+    run(&dir, &["init"]);
+
+    let fake_bin = unique_tmp_dir("exec_quiet_fakebin");
+    let fake_tool = fake_bin.join("tool");
+    fs::write(&fake_tool, "#!/usr/bin/env sh\nprintf 'tool-output' \n").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&fake_tool).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&fake_tool, perms).unwrap();
+    }
+
+    let path = format!(
+        "{}:{}",
+        fake_bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let output = Command::new(bin_path())
+        .args(["exec", "--agent", "tool", "--quiet", "--", "tool"])
+        .current_dir(&dir)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code().unwrap_or(-1), 0);
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "tool-output");
 
     fs::remove_dir_all(&dir).ok();
     fs::remove_dir_all(&fake_bin).ok();
@@ -627,21 +718,17 @@ fn daemon_starts_writes_pidfile_and_stops_cleanly() {
         .parse()
         .unwrap();
     assert!(pid > 0);
+    wait_for_daemon_ready(&dir);
 
     // Modify a file — the daemon should snapshot it.
-    std::thread::sleep(std::time::Duration::from_millis(500));
     fs::write(dir.join("seed.txt"), "y").unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(800));
-
-    let (_, log_out, _) = run(&dir, &["log", "-n", "10"]);
-    assert!(
-        log_out.contains("modify seed.txt"),
-        "daemon should have caught the modification: {log_out}"
-    );
+    let _ = wait_for_log_match(&dir, "daemon should have caught the modification", |out| {
+        out.contains("modify seed.txt")
+    });
 
     let (stop_code, stop_out, _) = run(&dir, &["stop"]);
     assert_eq!(stop_code, 0, "stop failed: {stop_out}");
-    std::thread::sleep(std::time::Duration::from_millis(200));
+    std::thread::sleep(Duration::from_millis(200));
     assert!(!pidfile.exists(), "pidfile should be cleaned up after stop");
 
     fs::remove_dir_all(&dir).ok();
@@ -655,8 +742,8 @@ fn daemon_coalesces_temp_file_save_patterns_into_the_real_file() {
 
     let (code, out, _) = run(&dir, &["serve", "--daemon"]);
     assert_eq!(code, 0, "serve --daemon failed: {out}");
+    wait_for_daemon_ready(&dir);
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
     let save = Command::new("sh")
         .arg("-c")
         .arg("printf 'v2' > note.txt.tmp && mv note.txt.tmp note.txt")
@@ -664,12 +751,13 @@ fn daemon_coalesces_temp_file_save_patterns_into_the_real_file() {
         .output()
         .unwrap();
     assert!(save.status.success(), "temp-file save failed: {:?}", save);
-    std::thread::sleep(std::time::Duration::from_millis(800));
-
-    let (_, log_out, _) = run(&dir, &["log", "-n", "10"]);
-    assert!(
-        log_out.contains("note.txt"),
-        "expected real file in log output: {log_out}"
+    let log_out = wait_for_log_match(
+        &dir,
+        "expected temp-file save to be attributed to the real file",
+        |out| {
+            (out.contains("modify note.txt") || out.contains("create note.txt"))
+                && !out.contains("note.txt.tmp")
+        },
     );
     assert!(
         !log_out.contains("note.txt.tmp"),
@@ -787,11 +875,18 @@ fn unpin_restores_project_to_pinned_state() {
     run(&dir, &["pin", "v1-snapshot"]);
     let (serve_code, _, serve_err) = run(&dir, &["serve", "--daemon"]);
     assert_eq!(serve_code, 0, "serve --daemon failed: {serve_err}");
+    wait_for_daemon_ready(&dir);
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
     fs::write(dir.join("file.rs"), "v2").unwrap();
     fs::write(dir.join("new.rs"), "brand new").unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(800));
+    let _ = wait_for_log_match(
+        &dir,
+        "expected daemon to record both the file edit and the new file before unpin",
+        |out| {
+            out.contains("new.rs")
+                && out.lines().filter(|line| line.contains("file.rs")).count() >= 2
+        },
+    );
 
     let (code, out, _) = run(&dir, &["unpin", "v1-snapshot"]);
     assert_eq!(code, 0, "unpin failed: {out}");
@@ -1013,10 +1108,12 @@ fn gc_uses_configured_keep_last_window() {
 
     let (code, out, _) = run(&dir, &["serve", "--daemon"]);
     assert_eq!(code, 0, "serve --daemon failed: {out}");
+    wait_for_daemon_ready(&dir);
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
     fs::write(dir.join("seed.txt"), "y").unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(800));
+    let _ = wait_for_log_match(&dir, "expected daemon to record the gc test edit", |out| {
+        out.contains("modify seed.txt")
+    });
     let _ = run(&dir, &["stop"]);
 
     fs::write(
