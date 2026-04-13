@@ -127,7 +127,7 @@ Longer essay: [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
 ## Status
 
-`v0.0.x` — pre-alpha. The core pipeline works end-to-end. Integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS.
+`v0.0.x` — pre-alpha. The core pipeline works end-to-end. Integration tests passing. clippy `-D warnings` clean. CI green on Linux + macOS, with a focused Windows watcher/rollback lane proving `init` + watch + `log` + `oops` on hosted runners. Background daemon control remains Unix-first today.
 
 Coming next: first-class editor integrations, richer daemon control, and launch/distribution polish.
 

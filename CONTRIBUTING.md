@@ -52,7 +52,7 @@ cargo test --test integration
 cargo build --release
 ```
 
-CI runs the same four steps on Linux + macOS. If any fail, the PR can't merge.
+CI runs the same four steps on Linux + macOS, plus a focused Windows watcher/rollback smoke test. If any fail, the PR can't merge.
 
 ## Code style
 

@@ -64,6 +64,17 @@ jobs:
             cargo test --workspace --all-targets -- --test-threads=1 --nocapture
           fi
 
+  windows-watch:
+    name: windows watcher rollback smoke
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run focused Windows watcher coverage
+        run: cargo test --test integration foreground_daemon_records_log_and_oops_round_trip -- --nocapture
+
   www:
     name: build www/ (Astro)
     runs-on: ubuntu-latest

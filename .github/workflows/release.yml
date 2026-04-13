@@ -56,11 +56,12 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
-          STAGE="agent-undo-${TAG}-${{ matrix.target }}"
+          STAGE="agent-undo-${RELEASE_TAG}-${{ matrix.target }}"
           mkdir -p "dist/${STAGE}"
           # Crate is `agent-undo` (Cargo.toml [package].name);
           # binary is `au` (Cargo.toml [[bin]].name).
@@ -93,8 +94,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
-          name: ${{ github.ref_name || github.event.inputs.tag }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true
           files: |
             dist/*.tar.gz

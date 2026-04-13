@@ -10,7 +10,7 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 fn unique_tmp_dir(label: &str) -> PathBuf {
@@ -91,6 +91,92 @@ where
             panic!("{description}: {sample}");
         }
         std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn wait_for_log_events<F>(dir: &PathBuf, description: &str, predicate: F) -> Vec<serde_json::Value>
+where
+    F: Fn(&[serde_json::Value]) -> bool,
+{
+    let started = Instant::now();
+    let timeout = Duration::from_secs(5);
+
+    loop {
+        let (code, out, err) = run(dir, &["log", "--json", "-n", "100"]);
+        let sample = if code == 0 {
+            out.clone()
+        } else {
+            format!("log --json -n 100 failed ({code}): {err}")
+        };
+
+        if code == 0 {
+            let parsed: serde_json::Value =
+                serde_json::from_str(&out).unwrap_or_else(|e| panic!("bad log json: {e}\n{out}"));
+            let events = parsed
+                .as_array()
+                .unwrap_or_else(|| panic!("log --json should return an array: {out}"));
+            if predicate(events) {
+                return events.clone();
+            }
+        }
+
+        if started.elapsed() >= timeout {
+            panic!("{description}: {sample}");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn start_session(dir: &PathBuf, agent: &str, session_id: &str) -> String {
+    let metadata = serde_json::json!({ "session_id": session_id }).to_string();
+    let output = Command::new(bin_path())
+        .args(["session", "start", "--agent", agent, "--metadata"])
+        .arg(&metadata)
+        .current_dir(dir)
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code().unwrap_or(-1),
+        0,
+        "session start failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn end_session(dir: &PathBuf, session_id: &str) {
+    let (code, out, err) = run(dir, &["session", "end", session_id]);
+    assert_eq!(code, 0, "session end failed: {out}{err}");
+}
+
+struct ForegroundDaemon {
+    dir: PathBuf,
+    child: Child,
+}
+
+impl Drop for ForegroundDaemon {
+    fn drop(&mut self) {
+        if self.child.try_wait().ok().flatten().is_none() {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+        let _ = fs::remove_file(self.dir.join(".agent-undo/daemon.pid"));
+    }
+}
+
+fn start_foreground_daemon(dir: &PathBuf) -> ForegroundDaemon {
+    let log = fs::File::create(dir.join(".agent-undo/test-daemon.log")).unwrap();
+    let log_err = log.try_clone().unwrap();
+    let child = Command::new(bin_path())
+        .arg("serve")
+        .current_dir(dir)
+        .stdout(Stdio::from(log))
+        .stderr(Stdio::from(log_err))
+        .spawn()
+        .unwrap();
+    ForegroundDaemon {
+        dir: dir.clone(),
+        child,
     }
 }
 
@@ -735,6 +821,59 @@ fn daemon_starts_writes_pidfile_and_stops_cleanly() {
 }
 
 #[test]
+fn foreground_daemon_records_log_and_oops_round_trip() {
+    let dir = unique_tmp_dir("foreground_oops");
+    let story = dir.join("story.txt");
+    fs::write(&story, "before\n").unwrap();
+    run(&dir, &["init"]);
+
+    let daemon = start_foreground_daemon(&dir);
+    let started = Instant::now();
+    let timeout = Duration::from_secs(8);
+    let events = loop {
+        let attempt = started.elapsed().as_millis();
+        fs::write(&story, format!("after-{attempt}\n")).unwrap();
+
+        let (code, out, err) = run(&dir, &["log", "--json", "-n", "100"]);
+        if code == 0 {
+            let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+            let events = parsed.as_array().unwrap().clone();
+            if events.iter().any(|event| {
+                event["path"] == "story.txt"
+                    && event["kind"] == "modify"
+                    && event["after_hash"].is_string()
+            }) {
+                break events;
+            }
+        } else if started.elapsed() >= timeout {
+            panic!("foreground daemon log polling failed: {out}{err}");
+        }
+
+        if started.elapsed() >= timeout {
+            panic!("timed out waiting for foreground daemon to record story.txt");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert!(
+        events
+            .iter()
+            .any(|event| { event["path"] == "story.txt" && event["kind"] == "modify" }),
+        "story.txt modification missing from log json: {events:?}"
+    );
+
+    let (oops_code, oops_out, oops_err) = run(&dir, &["oops", "--confirm"]);
+    assert_eq!(oops_code, 0, "oops failed: {oops_out}{oops_err}");
+    assert!(
+        oops_out.contains("story.txt"),
+        "unexpected oops output: {oops_out}"
+    );
+    assert_eq!(fs::read_to_string(&story).unwrap(), "before\n");
+
+    drop(daemon);
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn daemon_coalesces_temp_file_save_patterns_into_the_real_file() {
     let dir = unique_tmp_dir("daemon_tmp_save");
     fs::write(dir.join("note.txt"), "v1").unwrap();
@@ -763,6 +902,166 @@ fn daemon_coalesces_temp_file_save_patterns_into_the_real_file() {
         !log_out.contains("note.txt.tmp"),
         "temp file should not pollute the timeline: {log_out}"
     );
+
+    let _ = run(&dir, &["stop"]);
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[cfg(unix)]
+#[test]
+fn overlapping_sessions_keep_different_file_attribution_and_restore_scoped() {
+    let dir = unique_tmp_dir("overlap_two_files");
+    fs::write(dir.join("alpha.txt"), "alpha-before\n").unwrap();
+    fs::write(dir.join("beta.txt"), "beta-before\n").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["serve", "--daemon"]);
+    assert_eq!(code, 0, "serve --daemon failed: {out}{err}");
+    wait_for_daemon_ready(&dir);
+
+    let alpha_session = start_session(&dir, "cursor", "session-alpha-overlap");
+    assert_eq!(alpha_session, "session-alpha-overlap");
+    fs::write(dir.join("alpha.txt"), "alpha-after\n").unwrap();
+    let _ = wait_for_log_events(&dir, "expected alpha session event", |events| {
+        events
+            .iter()
+            .any(|event| event["path"] == "alpha.txt" && event["session_id"] == alpha_session)
+    });
+
+    let beta_session = start_session(&dir, "codex", "session-beta-overlap");
+    assert_eq!(beta_session, "session-beta-overlap");
+    fs::write(dir.join("beta.txt"), "beta-after\n").unwrap();
+    let events = wait_for_log_events(&dir, "expected beta session event", |events| {
+        events
+            .iter()
+            .any(|event| event["path"] == "alpha.txt" && event["session_id"] == alpha_session)
+            && events
+                .iter()
+                .any(|event| event["path"] == "beta.txt" && event["session_id"] == beta_session)
+    });
+
+    end_session(&dir, &beta_session);
+    end_session(&dir, &alpha_session);
+
+    let alpha_event = events
+        .iter()
+        .find(|event| event["path"] == "alpha.txt" && event["kind"] == "modify")
+        .unwrap();
+    let beta_event = events
+        .iter()
+        .find(|event| event["path"] == "beta.txt" && event["kind"] == "modify")
+        .unwrap();
+    assert_eq!(alpha_event["attribution"], "cursor");
+    assert_eq!(alpha_event["session_id"], alpha_session);
+    assert_eq!(beta_event["attribution"], "codex");
+    assert_eq!(beta_event["session_id"], beta_session);
+
+    let (sessions_code, sessions_out, sessions_err) = run(&dir, &["sessions", "--json"]);
+    assert_eq!(
+        sessions_code, 0,
+        "sessions --json failed: {sessions_out}{sessions_err}"
+    );
+    let sessions: serde_json::Value = serde_json::from_str(&sessions_out).unwrap();
+    let rows = sessions.as_array().unwrap();
+    assert!(rows.iter().any(|row| {
+        row["id"] == alpha_session && row["agent"] == "cursor" && row["ended_at_ns"].is_number()
+    }));
+    assert!(rows.iter().any(|row| {
+        row["id"] == beta_session && row["agent"] == "codex" && row["ended_at_ns"].is_number()
+    }));
+
+    let (restore_code, restore_out, restore_err) =
+        run(&dir, &["restore", "--session", &beta_session]);
+    assert_eq!(
+        restore_code, 0,
+        "restore --session failed: {restore_out}{restore_err}"
+    );
+    assert!(
+        restore_out.contains("beta.txt"),
+        "unexpected restore output: {restore_out}"
+    );
+    assert_eq!(
+        fs::read_to_string(dir.join("beta.txt")).unwrap(),
+        "beta-before\n"
+    );
+    assert_eq!(
+        fs::read_to_string(dir.join("alpha.txt")).unwrap(),
+        "alpha-after\n"
+    );
+
+    let _ = run(&dir, &["stop"]);
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[cfg(unix)]
+#[test]
+fn overlapping_sessions_on_same_file_keep_order_and_latest_session_rollback() {
+    let dir = unique_tmp_dir("overlap_same_file");
+    let shared = dir.join("shared.txt");
+    fs::write(&shared, "before\n").unwrap();
+    run(&dir, &["init"]);
+
+    let (code, out, err) = run(&dir, &["serve", "--daemon"]);
+    assert_eq!(code, 0, "serve --daemon failed: {out}{err}");
+    wait_for_daemon_ready(&dir);
+
+    let alpha_session = start_session(&dir, "cursor", "session-alpha-same-file");
+    fs::write(&shared, "alpha\n").unwrap();
+    let _ = wait_for_log_events(&dir, "expected alpha write to shared.txt", |events| {
+        events
+            .iter()
+            .any(|event| event["path"] == "shared.txt" && event["session_id"] == alpha_session)
+    });
+
+    let beta_session = start_session(&dir, "codex", "session-beta-same-file");
+    fs::write(&shared, "beta\n").unwrap();
+    let events = wait_for_log_events(
+        &dir,
+        "expected both overlapping shared.txt writes",
+        |events| {
+            let shared_events: Vec<_> = events
+                .iter()
+                .filter(|event| event["path"] == "shared.txt" && event["kind"] == "modify")
+                .collect();
+            shared_events.len() >= 2
+                && shared_events[shared_events.len() - 2]["session_id"] == alpha_session
+                && shared_events[shared_events.len() - 1]["session_id"] == beta_session
+        },
+    );
+
+    end_session(&dir, &beta_session);
+    end_session(&dir, &alpha_session);
+
+    let shared_events: Vec<_> = events
+        .iter()
+        .filter(|event| event["path"] == "shared.txt" && event["kind"] == "modify")
+        .collect();
+    let alpha_event = shared_events[shared_events.len() - 2];
+    let beta_event = shared_events[shared_events.len() - 1];
+    assert_eq!(alpha_event["attribution"], "cursor");
+    assert_eq!(alpha_event["session_id"], alpha_session);
+    assert_eq!(beta_event["attribution"], "codex");
+    assert_eq!(beta_event["session_id"], beta_session);
+
+    let (oops_code, oops_out, oops_err) = run(&dir, &["oops", "--confirm"]);
+    assert_eq!(oops_code, 0, "oops failed: {oops_out}{oops_err}");
+    assert!(
+        oops_out.contains("shared.txt"),
+        "unexpected oops output: {oops_out}"
+    );
+    assert_eq!(fs::read_to_string(&shared).unwrap(), "alpha\n");
+
+    let (restore_code, restore_out, restore_err) =
+        run(&dir, &["restore", "--session", &alpha_session]);
+    assert_eq!(
+        restore_code, 0,
+        "restore --session failed: {restore_out}{restore_err}"
+    );
+    assert!(
+        restore_out.contains("shared.txt"),
+        "unexpected restore output: {restore_out}"
+    );
+    assert_eq!(fs::read_to_string(&shared).unwrap(), "before\n");
 
     let _ = run(&dir, &["stop"]);
     fs::remove_dir_all(&dir).ok();

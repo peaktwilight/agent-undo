@@ -322,7 +322,7 @@ Explicitly deferred to keep scope tight:
 - ❌ `agent-undo blame` (line-level attribution) — v2
 - ❌ Cursor / Cline / Aider / Codex shims — only Claude Code in v1, others in v2
 - ❌ Plugin system — v2
-- ❌ Windows support — Linux + macOS in v1, Windows in v2
+- ◐ Windows support — hosted CI now proves the core watcher/rollback loop on Windows runners, but daemon socket control and full distribution remain Unix-first
 
 ## v1 build sequence (4 weeks)
 
