@@ -573,17 +573,45 @@ fn stop_process(pid: u32) -> Result<String> {
 
 #[cfg(windows)]
 fn stop_process(pid: u32) -> Result<String> {
-    use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
-
-    let system = System::new_with_specifics(
-        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-    );
-    let Some(process) = system.process(Pid::from_u32(pid)) else {
-        anyhow::bail!("agent-undo daemon pid {pid} disappeared before stop completed");
+    use std::io;
+    use windows_sys::Win32::Foundation::{CloseHandle, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, TerminateProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
     };
-    if !process.kill() {
-        anyhow::bail!("failed to terminate agent-undo daemon pid {pid}");
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_TERMINATE | PROCESS_SYNCHRONIZE, 0, pid);
+        if handle.is_null() {
+            anyhow::bail!(
+                "failed to open agent-undo daemon pid {pid} for termination: {}",
+                io::Error::last_os_error()
+            );
+        }
+
+        if TerminateProcess(handle, 1) == 0 {
+            let err = io::Error::last_os_error();
+            let _ = CloseHandle(handle);
+            anyhow::bail!("failed to terminate agent-undo daemon pid {pid}: {err}");
+        }
+
+        let wait = WaitForSingleObject(handle, 5_000);
+        let _ = CloseHandle(handle);
+
+        match wait {
+            WAIT_OBJECT_0 => {}
+            WAIT_TIMEOUT => {
+                anyhow::bail!("timed out waiting for agent-undo daemon pid {pid} to exit")
+            }
+            WAIT_FAILED => anyhow::bail!(
+                "failed while waiting for agent-undo daemon pid {pid} to exit: {}",
+                io::Error::last_os_error()
+            ),
+            other => anyhow::bail!(
+                "unexpected wait status {other} while stopping agent-undo daemon pid {pid}"
+            ),
+        }
     }
+
     Ok(format!(
         "terminated agent-undo daemon on Windows (pid {pid})"
     ))
@@ -601,12 +629,20 @@ fn read_pidfile(path: &std::path::Path) -> Option<u32> {
 
 #[cfg(windows)]
 fn process_alive(pid: u32) -> bool {
-    use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
+    use windows_sys::Win32::Foundation::{CloseHandle, WAIT_TIMEOUT};
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+    };
 
-    let system = System::new_with_specifics(
-        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-    );
-    system.process(Pid::from_u32(pid)).is_some()
+    unsafe {
+        let handle = OpenProcess(PROCESS_SYNCHRONIZE, 0, pid);
+        if handle.is_null() {
+            return false;
+        }
+        let wait = WaitForSingleObject(handle, 0);
+        let _ = CloseHandle(handle);
+        wait == WAIT_TIMEOUT
+    }
 }
 
 #[cfg(unix)]
