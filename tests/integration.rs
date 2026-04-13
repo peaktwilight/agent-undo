@@ -31,14 +31,47 @@ fn bin_path() -> PathBuf {
 }
 
 fn run(cwd: &PathBuf, args: &[&str]) -> (i32, String, String) {
-    let output = Command::new(bin_path())
+    run_with_timeout(cwd, args, Duration::from_secs(10))
+}
+
+fn run_with_timeout(cwd: &PathBuf, args: &[&str], timeout: Duration) -> (i32, String, String) {
+    let mut child = Command::new(bin_path())
         .args(args)
         .current_dir(cwd)
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .expect("failed to run agent-undo");
+
+    let started = Instant::now();
+    loop {
+        match child.try_wait().expect("failed to poll agent-undo") {
+            Some(_) => break,
+            None if started.elapsed() >= timeout => {
+                let _ = child.kill();
+                break;
+            }
+            None => std::thread::sleep(Duration::from_millis(50)),
+        }
+    }
+
+    let output = child
+        .wait_with_output()
+        .expect("failed waiting for agent-undo");
+    let timed_out = started.elapsed() >= timeout && !output.status.success();
     let code = output.status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let mut stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    if timed_out {
+        if !stderr.is_empty() && !stderr.ends_with('\n') {
+            stderr.push('\n');
+        }
+        stderr.push_str(&format!(
+            "agent-undo command timed out after {}s: au {}",
+            timeout.as_secs(),
+            args.join(" ")
+        ));
+    }
     (code, stdout, stderr)
 }
 
@@ -795,6 +828,7 @@ fn daemon_starts_writes_pidfile_and_stops_cleanly() {
     fs::write(dir.join("seed.txt"), "x").unwrap();
     run(&dir, &["init"]);
 
+    println!("starting background daemon");
     let (code, out, _) = run(&dir, &["serve", "--daemon"]);
     assert_eq!(code, 0, "serve --daemon failed: {out}");
     assert!(out.contains("daemon started"), "unexpected output: {out}");
@@ -807,14 +841,17 @@ fn daemon_starts_writes_pidfile_and_stops_cleanly() {
         .parse()
         .unwrap();
     assert!(pid > 0);
+    println!("waiting for daemon ready (pid {pid})");
     wait_for_daemon_ready(&dir);
 
     // Modify a file — the daemon should snapshot it.
+    println!("writing seed.txt to trigger watcher");
     fs::write(dir.join("seed.txt"), "y").unwrap();
     let _ = wait_for_log_match(&dir, "daemon should have caught the modification", |out| {
         out.contains("modify seed.txt")
     });
 
+    println!("stopping daemon");
     let (stop_code, stop_out, _) = run(&dir, &["stop"]);
     assert_eq!(stop_code, 0, "stop failed: {stop_out}");
     std::thread::sleep(Duration::from_millis(200));
