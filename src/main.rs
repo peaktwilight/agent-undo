@@ -545,20 +545,48 @@ fn cmd_stop() -> Result<()> {
             _ => {}
         }
     }
-    #[cfg(unix)]
-    {
-        let _ = std::process::Command::new("kill")
-            .arg(pid.to_string())
-            .status();
-        println!("sent SIGTERM to agent-undo daemon (pid {pid})");
+
+    let stop_message = stop_process(pid)?;
+    for _ in 0..20 {
+        if !pidfile.exists() || !process_alive(pid) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    #[cfg(not(unix))]
-    {
-        println!("stop on non-unix platforms not yet supported (kill pid {pid} manually)");
+    if process_alive(pid) {
+        anyhow::bail!("agent-undo daemon still running after stop attempt (pid {pid})");
     }
+
+    println!("{stop_message}");
     let _ = std::fs::remove_file(&pidfile);
     let _ = std::fs::remove_file(&paths.socket_path);
     Ok(())
+}
+
+#[cfg(unix)]
+fn stop_process(pid: u32) -> Result<String> {
+    let _ = std::process::Command::new("kill")
+        .arg(pid.to_string())
+        .status();
+    Ok(format!("sent SIGTERM to agent-undo daemon (pid {pid})"))
+}
+
+#[cfg(windows)]
+fn stop_process(pid: u32) -> Result<String> {
+    let status = std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/T", "/F"])
+        .status()?;
+    if !status.success() {
+        anyhow::bail!("taskkill failed for agent-undo daemon pid {pid}");
+    }
+    Ok(format!(
+        "terminated agent-undo daemon via taskkill (pid {pid})"
+    ))
+}
+
+#[cfg(all(not(unix), not(windows)))]
+fn stop_process(pid: u32) -> Result<String> {
+    anyhow::bail!("stop on this platform is not yet supported (kill pid {pid} manually)")
 }
 
 fn read_pidfile(path: &std::path::Path) -> Option<u32> {
@@ -566,21 +594,30 @@ fn read_pidfile(path: &std::path::Path) -> Option<u32> {
     s.trim().parse::<u32>().ok()
 }
 
+#[cfg(windows)]
 fn process_alive(pid: u32) -> bool {
-    #[cfg(unix)]
-    {
-        // signal 0 doesn't kill, just probes whether the process exists
-        std::process::Command::new("kill")
-            .args(["-0", &pid.to_string()])
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = pid;
-        false
-    }
+    use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
+
+    let system = System::new_with_specifics(
+        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+    );
+    system.process(Pid::from_u32(pid)).is_some()
+}
+
+#[cfg(unix)]
+fn process_alive(pid: u32) -> bool {
+    // signal 0 doesn't kill, just probes whether the process exists
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+#[cfg(all(not(unix), not(windows)))]
+fn process_alive(pid: u32) -> bool {
+    let _ = pid;
+    false
 }
 
 /// Parse a relative duration string like "5m", "2h", "1d" into nanoseconds.
@@ -1513,7 +1550,10 @@ fn cmd_oops(confirm: bool) -> Result<()> {
         },
     ) {
         Ok(ipc::Response::Plan { items }) => items,
-        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(ipc::Response::Error { .. }) => {
+            let store = Store::open(paths.clone())?;
+            restore::oops_plan(&store, WINDOW_NS)?
+        }
         Ok(_) => anyhow::bail!("unexpected daemon response"),
         Err(_) => {
             let store = Store::open(paths.clone())?;
@@ -1563,7 +1603,10 @@ fn cmd_oops(confirm: bool) -> Result<()> {
         },
     ) {
         Ok(ipc::Response::Plan { items }) => items,
-        Ok(ipc::Response::Error { message }) => anyhow::bail!(message),
+        Ok(ipc::Response::Error { .. }) => {
+            let store = Store::open(paths)?;
+            restore::oops(&store, WINDOW_NS)?
+        }
         Ok(_) => anyhow::bail!("unexpected daemon response"),
         Err(_) => {
             let store = Store::open(paths)?;

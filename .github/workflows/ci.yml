@@ -72,7 +72,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run focused Windows watcher coverage
-        run: cargo test --test integration foreground_daemon_records_log_and_oops_round_trip -- --nocapture
+        run: |
+          cargo test --test integration foreground_daemon_records_log_and_oops_round_trip -- --nocapture
+          cargo test --test integration daemon_starts_writes_pidfile_and_stops_cleanly -- --nocapture
 
   www:
     name: build www/ (Astro)
