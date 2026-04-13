@@ -60,7 +60,7 @@ fi
 info "installing $TAG"
 
 # --- download tarball --------------------------------------------------------
-# Release assets are named like: agent-undo-v0.0.3-x86_64-apple-darwin.tar.gz
+# Release assets are named like: agent-undo-v0.0.4-x86_64-apple-darwin.tar.gz
 # (see .github/workflows/release.yml — packaged as "agent-undo-${TAG}-${target}")
 TARBALL="${CRATE_NAME}-${TAG}-${TARGET}.tar.gz"
 URL="https://github.com/$REPO/releases/download/$TAG/$TARBALL"
@@ -76,7 +76,7 @@ fi
 info "extracting"
 tar -xzf "$TMP/$TARBALL" -C "$TMP"
 
-# The tarball nests the binary inside a stage dir (e.g. agent-undo-v0.0.3-<target>/au).
+# The tarball nests the binary inside a stage dir (e.g. agent-undo-v0.0.4-<target>/au).
 BIN_PATH="$(find "$TMP" -name "$BIN_NAME" -type f -perm -u+x 2>/dev/null | head -n 1)"
 if [ -z "$BIN_PATH" ]; then
   BIN_PATH="$(find "$TMP" -name "$BIN_NAME" -type f | head -n 1)"
