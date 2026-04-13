@@ -35,19 +35,31 @@ fn run(cwd: &PathBuf, args: &[&str]) -> (i32, String, String) {
 }
 
 fn run_with_timeout(cwd: &PathBuf, args: &[&str], timeout: Duration) -> (i32, String, String) {
+    let ns = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let capture_dir = std::env::temp_dir();
+    let stdout_path = capture_dir.join(format!("agent-undo-cmd-{ns}-stdout.log"));
+    let stderr_path = capture_dir.join(format!("agent-undo-cmd-{ns}-stderr.log"));
+    let stdout_file = fs::File::create(&stdout_path).expect("create stdout capture");
+    let stderr_file = fs::File::create(&stderr_path).expect("create stderr capture");
+
     let mut child = Command::new(bin_path())
         .args(args)
         .current_dir(cwd)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdout(Stdio::from(stdout_file))
+        .stderr(Stdio::from(stderr_file))
         .spawn()
         .expect("failed to run agent-undo");
 
     let started = Instant::now();
+    let mut timed_out = false;
     loop {
         match child.try_wait().expect("failed to poll agent-undo") {
             Some(_) => break,
             None if started.elapsed() >= timeout => {
+                timed_out = true;
                 let _ = child.kill();
                 break;
             }
@@ -55,13 +67,13 @@ fn run_with_timeout(cwd: &PathBuf, args: &[&str], timeout: Duration) -> (i32, St
         }
     }
 
-    let output = child
-        .wait_with_output()
-        .expect("failed waiting for agent-undo");
-    let timed_out = started.elapsed() >= timeout && !output.status.success();
-    let code = output.status.code().unwrap_or(-1);
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-    let mut stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let status = child.wait().expect("failed waiting for agent-undo");
+    let code = status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&fs::read(&stdout_path).unwrap_or_default()).into_owned();
+    let mut stderr =
+        String::from_utf8_lossy(&fs::read(&stderr_path).unwrap_or_default()).into_owned();
+    let _ = fs::remove_file(&stdout_path);
+    let _ = fs::remove_file(&stderr_path);
     if timed_out {
         if !stderr.is_empty() && !stderr.ends_with('\n') {
             stderr.push('\n');
