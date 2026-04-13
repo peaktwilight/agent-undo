@@ -380,7 +380,7 @@ mod tests {
             .expect("record event");
 
         let stop = Arc::new(AtomicBool::new(false));
-        let _guard = spawn_server(paths.clone(), Arc::clone(&stop)).expect("spawn socket server");
+        let guard = spawn_server(paths.clone(), Arc::clone(&stop)).expect("spawn socket server");
 
         match send(&paths, &Request::Status).expect("status request") {
             Response::Status { events, .. } => assert_eq!(events, 1),
@@ -484,6 +484,7 @@ mod tests {
             "active session should be cleared"
         );
 
+        drop(guard);
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -498,7 +499,7 @@ mod tests {
 
         let _store = Store::init(paths.clone()).expect("init store");
         let stop = Arc::new(AtomicBool::new(false));
-        let _guard = spawn_server(paths.clone(), stop).expect("spawn socket server");
+        let guard = spawn_server(paths.clone(), stop).expect("spawn socket server");
 
         assert!(
             paths.socket_path.exists(),
@@ -506,6 +507,7 @@ mod tests {
             paths.socket_path.display()
         );
 
+        drop(guard);
         fs::remove_dir_all(&dir).ok();
     }
 }
