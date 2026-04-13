@@ -573,14 +573,19 @@ fn stop_process(pid: u32) -> Result<String> {
 
 #[cfg(windows)]
 fn stop_process(pid: u32) -> Result<String> {
-    let status = std::process::Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/T", "/F"])
-        .status()?;
-    if !status.success() {
-        anyhow::bail!("taskkill failed for agent-undo daemon pid {pid}");
+    use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
+
+    let system = System::new_with_specifics(
+        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+    );
+    let Some(process) = system.process(Pid::from_u32(pid)) else {
+        anyhow::bail!("agent-undo daemon pid {pid} disappeared before stop completed");
+    };
+    if !process.kill() {
+        anyhow::bail!("failed to terminate agent-undo daemon pid {pid}");
     }
     Ok(format!(
-        "terminated agent-undo daemon via taskkill (pid {pid})"
+        "terminated agent-undo daemon on Windows (pid {pid})"
     ))
 }
 

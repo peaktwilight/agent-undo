@@ -1,13 +1,22 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+
+#[cfg(unix)]
+use anyhow::Context;
+#[cfg(unix)]
+use std::io::{Read, Write};
+#[cfg(unix)]
+use std::sync::atomic::Ordering;
 
 use crate::hook::ActiveSession;
 use crate::paths::ProjectPaths;
+#[cfg(unix)]
 use crate::session;
-use crate::store::{EventRow, SessionRow, Store};
+#[cfg(unix)]
+use crate::store::Store;
+use crate::store::{EventRow, SessionRow};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -191,6 +200,7 @@ fn handle_client(
     Ok(())
 }
 
+#[cfg(unix)]
 fn handle_request(
     paths: &ProjectPaths,
     stop: &Arc<AtomicBool>,

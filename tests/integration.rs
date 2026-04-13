@@ -94,6 +94,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 fn wait_for_log_events<F>(dir: &PathBuf, description: &str, predicate: F) -> Vec<serde_json::Value>
 where
     F: Fn(&[serde_json::Value]) -> bool,
@@ -127,6 +128,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 fn start_session(dir: &PathBuf, agent: &str, session_id: &str) -> String {
     let metadata = serde_json::json!({ "session_id": session_id }).to_string();
     let output = Command::new(bin_path())
@@ -144,6 +146,7 @@ fn start_session(dir: &PathBuf, agent: &str, session_id: &str) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
+#[allow(dead_code)]
 fn end_session(dir: &PathBuf, session_id: &str) {
     let (code, out, err) = run(dir, &["session", "end", session_id]);
     assert_eq!(code, 0, "session end failed: {out}{err}");
