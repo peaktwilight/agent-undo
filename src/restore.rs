@@ -16,6 +16,7 @@
 use anyhow::{bail, Context, Result};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::store::{EventRow, NewEvent, Store};
@@ -27,12 +28,61 @@ fn now_ns() -> i64 {
         .unwrap_or(0)
 }
 
+/// Resolve a restore target without traversing symlinked project parents.
+/// Parent directories are created one component at a time so existing symlinks
+/// are rejected before any read, write, or delete can follow them.
+fn checked_restore_target(root: &Path, rel_path: &str, create_parents: bool) -> Result<PathBuf> {
+    let relative = Path::new(rel_path);
+    let components: Vec<_> = relative.components().collect();
+    if components.is_empty() || components.iter().any(|c| !matches!(c, Component::Normal(_))) {
+        bail!("invalid project-relative restore path: {rel_path}");
+    }
+
+    let canonical_root = fs::canonicalize(root)
+        .with_context(|| format!("resolving project root {}", root.display()))?;
+    let mut parent = canonical_root;
+    for component in &components[..components.len() - 1] {
+        let Component::Normal(name) = component else { unreachable!() };
+        parent.push(name);
+        match fs::symlink_metadata(&parent) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                bail!("refusing restore through non-directory or symlink {}", parent.display());
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && create_parents => {
+                fs::create_dir(&parent)
+                    .with_context(|| format!("creating restore directory {}", parent.display()))?;
+                let metadata = fs::symlink_metadata(&parent)?;
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    bail!("refusing restore through non-directory or symlink {}", parent.display());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                // A missing parent makes a delete a no-op; do not create it.
+                return Ok(parent.join(&components[components.len() - 1].as_os_str()));
+            }
+            Err(error) => return Err(error).with_context(|| format!("checking {}", parent.display())),
+        }
+    }
+
+    let target = parent.join(components[components.len() - 1].as_os_str());
+    match fs::symlink_metadata(&target) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            bail!("refusing restore to non-file or symlink {}", target.display());
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).with_context(|| format!("checking {}", target.display())),
+    }
+    Ok(target)
+}
+
 /// Restore a single file to the content represented by `target_hash`.
 /// `target_hash = None` means "the file did not exist" — delete it.
 ///
 /// Always records a pre-restore snapshot of the current file state first.
 pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>) -> Result<()> {
-    let abs = store.paths.root.join(rel_path);
+    let abs = checked_restore_target(&store.paths.root, rel_path, target_hash.is_some())?;
     let ts_ns = now_ns();
 
     // Capture current state so the restore is itself reversible.
@@ -69,9 +119,9 @@ pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>)
             let bytes = store
                 .read_blob(h)
                 .with_context(|| format!("reading blob {h}"))?;
-            if let Some(parent) = abs.parent() {
-                fs::create_dir_all(parent)?;
-            }
+            // Recheck immediately before writing; project paths may have changed
+            // since the pre-restore snapshot was captured.
+            let abs = checked_restore_target(&store.paths.root, rel_path, true)?;
             // Atomic write via temp + rename to match the store's invariant.
             let tmp = abs.with_extension(format!("agent-undo-restore.{}", &h[..8.min(h.len())]));
             fs::write(&tmp, &bytes)?;
@@ -96,6 +146,8 @@ pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>)
             store.upsert_file_state(rel_path, h, size, after_ts)?;
         }
         None => {
+            // Recheck immediately before deletion for the same reason as writes.
+            let abs = checked_restore_target(&store.paths.root, rel_path, false)?;
             // Target says "file didn't exist" — delete it if present.
             if abs.exists() {
                 fs::remove_file(&abs).with_context(|| format!("removing {}", abs.display()))?;
