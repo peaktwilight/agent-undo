@@ -27,11 +27,49 @@ fn now_ns() -> i64 {
         .unwrap_or(0)
 }
 
+fn ensure_restore_path_within_root(root: &std::path::Path, rel_path: &str) -> Result<()> {
+    let relative = std::path::Path::new(rel_path);
+    if !relative.is_relative()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        bail!("restore path must stay within project root: {rel_path}");
+    }
+
+    let root = fs::canonicalize(root)?;
+    let mut current = root.clone();
+    for component in relative.components() {
+        let std::path::Component::Normal(name) = component else {
+            continue;
+        };
+        current.push(name);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                bail!("restore path contains a symlink: {}", current.display());
+            }
+            Ok(metadata) if current != root.join(relative) && !metadata.is_dir() => {
+                bail!("restore path parent is not a directory: {}", current.display());
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(())
+}
+
 /// Restore a single file to the content represented by `target_hash`.
 /// `target_hash = None` means "the file did not exist" — delete it.
 ///
 /// Always records a pre-restore snapshot of the current file state first.
 pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>) -> Result<()> {
+    ensure_restore_path_within_root(&store.paths.root, rel_path)?;
     let abs = store.paths.root.join(rel_path);
     let ts_ns = now_ns();
 
