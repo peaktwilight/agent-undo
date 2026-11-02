@@ -150,6 +150,13 @@ pub fn spawn_server(paths: ProjectPaths, stop: Arc<AtomicBool>) -> Result<Socket
 
     let listener = UnixListener::bind(&paths.socket_path)
         .with_context(|| format!("binding {}", paths.socket_path.display()))?;
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(
+            &paths.socket_path,
+            std::fs::Permissions::from_mode(0o600),
+        )?;
+    }
 
     let stop_thread = Arc::clone(&stop);
     let thread_paths = paths.clone();
