@@ -32,7 +32,27 @@ fn now_ns() -> i64 {
 ///
 /// Always records a pre-restore snapshot of the current file state first.
 pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>) -> Result<()> {
-    let abs = store.paths.root.join(rel_path);
+    let rel = std::path::Path::new(rel_path);
+    if rel.components().any(|component| {
+        !matches!(component, std::path::Component::Normal(_))
+    }) {
+        bail!("refusing to restore non-relative project path: {rel_path}");
+    }
+    let abs = store.paths.root.join(rel);
+    let mut cursor = store.paths.root.clone();
+    for component in rel.components() {
+        if let std::path::Component::Normal(name) = component {
+            cursor.push(name);
+            match fs::symlink_metadata(&cursor) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    bail!("refusing to restore through symlink: {}", cursor.display());
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+                Err(error) => return Err(error.into()),
+            }
+        }
+    }
     let ts_ns = now_ns();
 
     // Capture current state so the restore is itself reversible.
