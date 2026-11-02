@@ -631,7 +631,7 @@ fn stop_process(pid: u32) -> Result<String> {
 
 fn read_pidfile(path: &std::path::Path) -> Option<u32> {
     let s = std::fs::read_to_string(path).ok()?;
-    s.trim().parse::<u32>().ok()
+    s.trim().parse::<u32>().ok().filter(|pid| *pid != 0)
 }
 
 #[cfg(unix)]
