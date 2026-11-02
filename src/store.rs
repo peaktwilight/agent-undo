@@ -110,6 +110,11 @@ impl Store {
         let tmp = path.with_extension("tmp");
         {
             let mut f = fs::File::create(&tmp)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                f.set_permissions(fs::Permissions::from_mode(0o600))?;
+            }
             let compressed = zstd::stream::encode_all(bytes, 0)?;
             f.write_all(&compressed)?;
             f.sync_all()?;
