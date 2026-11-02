@@ -16,9 +16,33 @@
 use anyhow::{bail, Context, Result};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
+use std::path::{Component, Path};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::store::{EventRow, NewEvent, Store};
+
+fn validate_restore_path(root: &Path, rel_path: &str) -> Result<()> {
+    let rel = Path::new(rel_path);
+    if rel.as_os_str().is_empty()
+        || rel.components().any(|component| !matches!(component, Component::Normal(_)))
+    {
+        bail!("restore path must be a normal project-relative path");
+    }
+
+    let canonical_root = fs::canonicalize(root)?;
+    let mut parent = root.join(rel);
+    parent.pop();
+    while !parent.exists() {
+        if !parent.pop() {
+            bail!("restore path has no existing project parent");
+        }
+    }
+    let canonical_parent = fs::canonicalize(parent)?;
+    if !canonical_parent.starts_with(&canonical_root) {
+        bail!("restore path resolves outside the project root");
+    }
+    Ok(())
+}
 
 fn now_ns() -> i64 {
     SystemTime::now()
@@ -32,6 +56,7 @@ fn now_ns() -> i64 {
 ///
 /// Always records a pre-restore snapshot of the current file state first.
 pub fn restore_file_to(store: &Store, rel_path: &str, target_hash: Option<&str>) -> Result<()> {
+    validate_restore_path(&store.paths.root, rel_path)?;
     let abs = store.paths.root.join(rel_path);
     let ts_ns = now_ns();
 
