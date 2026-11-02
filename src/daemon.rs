@@ -197,6 +197,12 @@ fn process_path(store: &Store, path: &Path, config: &AppConfig) -> Result<()> {
         return Ok(());
     }
 
+    // Do not follow project symlinks: a symlink target may be outside the
+    // project and contain data the project should not snapshot.
+    let link_meta = std::fs::symlink_metadata(path)?;
+    if link_meta.file_type().is_symlink() {
+        return Ok(());
+    }
     // Directories surface as events for their children; skip the dir event itself.
     let meta = std::fs::metadata(path)?;
     if meta.is_dir() {
