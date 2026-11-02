@@ -19,6 +19,12 @@ pub struct Store {
 impl Store {
     /// Open an existing store. Errors if the DB file is missing.
     pub fn open(paths: ProjectPaths) -> Result<Self> {
+        fs::create_dir_all(&paths.objects_dir)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&paths.objects_dir, fs::Permissions::from_mode(0o700))?;
+        }
         let conn = Connection::open(&paths.db_path)
             .with_context(|| format!("opening {}", paths.db_path.display()))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
